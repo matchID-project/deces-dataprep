@@ -14,7 +14,6 @@ recipes:
           - df['COMMUNE_NAISSANCE'] = df['COMMUNE_NAISSANCE'].str.normalize('NFKD').str.encode('ASCII',errors='replace')
           - df['PAYS_NAISSANCE'] = df['PAYS_NAISSANCE'].str.normalize('NFKD').str.encode('ASCII',errors='replace')
           - df['NUM_DECES'] = df['NUM_DECES'].str.normalize('NFKD').str.encode('ASCII',errors='replace')
-      - pause:
       - replace:
           select: (NOM_PRENOMS|COMMUNE_NAISSANCE|PAYS_NAISSACE)$
           regex:
