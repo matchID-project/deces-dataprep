@@ -1,0 +1,8 @@
+datasets:
+  personnes-decedees_csv:
+    connector: upload
+    table: personnes-decedees.csv.gz
+    type: csv
+    compression: gzip
+    sep: ";"
+    encoding: "utf8"

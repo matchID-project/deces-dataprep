@@ -1,0 +1,6 @@
+connectors:
+  s3:
+    type: s3
+    endpoint_url: https://s3.fr-par.scw.cloud
+    region_name: fr-par
+    bucket: fichier-des-personnes-decedees

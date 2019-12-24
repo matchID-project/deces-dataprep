@@ -1,0 +1,29 @@
+datasets:
+  personnes-decedees_src:
+    # death people reference (fake - test sample)
+    # fixed with format with no header
+    connector: upload
+    table: 
+      regex: deces-.*.txt.gz
+    encoding: latin1
+    type: fwf
+    widths: 
+      - 80
+      - 1
+      - 8
+      - 5
+      - 30
+      - 30
+      - 8
+      - 5
+      - 10
+    names: 
+      - NOM_PRENOMS
+      - SEXE
+      - DATE_NAISSANCE
+      - CODE_INSEE_NAISSANCE
+      - COMMUNE_NAISSANCE
+      - PAYS_NAISSANCE
+      - DATE_DECES
+      - CODE_INSEE_DECES
+      - NUM_DECES

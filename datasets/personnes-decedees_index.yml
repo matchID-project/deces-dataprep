@@ -1,0 +1,41 @@
+datasets:
+  personnes-decedees_index:
+    connector: elasticsearch
+    table: deces 
+    #chunk: 500
+    #timeout: 30
+    #thread_count: 1
+    #safe: False
+    #max_tries: 1
+    body:
+      settings:
+        #index.store.type: mmapfs 
+        index:
+          refresh_interval: 30s
+          number_of_replicas: 0
+        analysis:
+          analyzer: 
+            my_analyzer:
+              tokenizer: "edge_tokenizer2"
+              filter: ["asciifolding"]
+          tokenizer:
+            edge_tokenizer2:
+              type: "edge_ngram"
+              min_gram: 2
+              max_gram: 10
+              token_chars: ["letter", "digit"]
+      mappings:
+        dynamic: False
+        properties:
+          UID:
+            type: keyword
+          NOM:
+            type: text
+          PRENOMS:
+            type: text
+          DATE_NAISSANCE:
+            type: text              
+          COMMUNE_NAISSANCE:
+            type: text
+          PAYS_NAISSANCE:
+            type: text
