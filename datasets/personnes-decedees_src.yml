@@ -3,9 +3,9 @@ datasets:
     # death people reference (fake - test sample)
     # fixed with format with no header
     connector: upload
-    table: 
-      regex: deces-.*.txt.gz
-    encoding: latin1
+    table:
+      regex: deces-\d{4}(|-m\d.*).txt.gz
+    compression: gzip
     type: fwf
     widths: 
       - 80

@@ -1,25 +1,29 @@
 recipes:
   dataprep_personnes-dedecees_search:
-    test_chunk_size: 1000
+    test_chunk_size: 10000
     write_queue_length: 1
     input: 
-      dataset: personnes-decedees_src
-      chunk: 10000
+      personnes-decedees_src
     output: personnes-decedees_csv
     threads: 2
     steps:
       - exec:
         #tag dataset and records with uniq id
           - "df['UID'] = df.apply(lambda row: sha1(tuple(row)), axis=1).str.slice(stop=16)"
+          - df['NOM_PRENOMS'] = df['NOM_PRENOMS'].str.normalize('NFKD').str.encode('ASCII',errors='replace')
+          - df['COMMUNE_NAISSANCE'] = df['COMMUNE_NAISSANCE'].str.normalize('NFKD').str.encode('ASCII',errors='replace')
+          - df['PAYS_NAISSANCE'] = df['PAYS_NAISSANCE'].str.normalize('NFKD').str.encode('ASCII',errors='replace')
+          - df['NUM_DECES'] = df['NUM_DECES'].str.normalize('NFKD').str.encode('ASCII',errors='replace')
+      - pause:
+      - replace:
+          select: (NOM_PRENOMS|COMMUNE_NAISSANCE|PAYS_NAISSACE)$
+          regex:
+            - '\s\?': 'X'
       - map:
           NOM: NOM_PRENOMS
           PRENOMS: NOM_PRENOMS
           
       #filter invalid chars (resulting in utf8 bugs)
-      - exec:
-          - df['NOM_PRENOMS'] = df['NOM_PRENOMS'].str.normalize('NFKD').str.encode('ASCII','ignore')
-          - df['COMMUNE_NAISSANCE'] = df['COMMUNE_NAISSANCE'].str.normalize('NFKD').str.encode('ASCII','ignore')
-          - df['PAYS_NAISSANCE'] = df['PAYS_NAISSANCE'].str.normalize('NFKD').str.encode('ASCII','ignore')
       #sexe
       - exec: >
           df['SEXE']=np.where(
@@ -124,7 +128,7 @@ recipes:
           strict: 
             CODE_INSEE_NAISSANCE_NORM: insee_code
           select: 
-            CODE_INSEE_NAISSANCE_HISTORY: insee_code_history
+            # CODE_INSEE_NAISSANCE_HISTORY: insee_code_history
             COMMUNE_NAISSANCE_REF: name
             COMMUNE_NAISSANCE_ALTER: newest_name
             DEPARTEMENT_NAISSANCE: dep_code
@@ -160,7 +164,6 @@ recipes:
             )
       - delete:
           select: CODE_INSEE_NAISSANCE_NORM|COMMUNE_NAISSANCE_(REF|ALTER|ALL)
-
 
       #pays décès
       - map:
@@ -221,7 +224,7 @@ recipes:
           strict: 
             CODE_INSEE_DECES_NORM: insee_code
           select: 
-            CODE_INSEE_DECES_HISTORY: insee_code_history
+            # CODE_INSEE_DECES_HISTORY: insee_code_history
             COMMUNE_DECES: name
             COMMUNE_DECES_ALTER: newest_name
             DEPARTEMENT_DECES: dep_code
@@ -236,4 +239,4 @@ recipes:
                 )
               )
       - delete:
-          select: COMMUNE_DECES_ALTER
+          select: .*ALTER|.*NORM

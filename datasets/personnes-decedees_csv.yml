@@ -1,8 +1,7 @@
 datasets:
   personnes-decedees_csv:
-    connector: upload
+    connector: s3
     table: personnes-decedees.csv.gz
     type: csv
-    compression: gzip
     sep: ";"
     encoding: "utf8"
