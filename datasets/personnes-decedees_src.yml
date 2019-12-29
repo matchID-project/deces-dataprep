@@ -2,7 +2,7 @@ datasets:
   personnes-decedees_src:
     # death people reference (fake - test sample)
     # fixed with format with no header
-    connector: upload
+    connector: s3
     table:
       regex: deces-\d{4}(|-m\d.*).txt.gz
     compression: gzip

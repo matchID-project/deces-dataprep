@@ -1,11 +1,11 @@
 recipes:
   dataprep_personnes-dedecees_search:
-    test_chunk_size: 10000
+    test_chunk_size: 100
     write_queue_length: 1
     input: 
       personnes-decedees_src
-    output: personnes-decedees_csv
-    threads: 2
+    output: personnes-decedees_index
+    threads: 4
     steps:
       - exec:
         #tag dataset and records with uniq id
@@ -21,12 +21,12 @@ recipes:
       - map:
           NOM: NOM_PRENOMS
           PRENOMS: NOM_PRENOMS
-          
+          PRENOM: NOM_PRENOMS
       #filter invalid chars (resulting in utf8 bugs)
       #sexe
       - exec: >
           df['SEXE']=np.where(
-            df['SEXE'] == 2,
+            df['SEXE'] == '2',
             "F",
             "M"
           )
@@ -36,9 +36,13 @@ recipes:
           regex:
             - ^(.*)\*.*/$: '\1'     
       - replace:
-          select: PRENOMS$
+          select: PRENOMS?$
           regex:
             - ^.*\*(.*)/$: '\1'
+      - replace:
+          select: PRENOM$
+          regex:
+            - ^(\S*)\s*.*$: '\1'
       - delete:
           select: NOM_PRENOMS
       - exec:
@@ -144,7 +148,7 @@ recipes:
                 np.where(
                   df['COMMUNE_NAISSANCE_REF'] == "",
                   df['COMMUNE_NAISSANCE'],
-                  df['COMMUNE_NAISSANCE'] + " / " + df['COMMUNE_NAISSANCE_REF']
+                  df['COMMUNE_NAISSANCE'] + "/" + df['COMMUNE_NAISSANCE_REF']
                 )
               )
           - df['COMMUNE_NAISSANCE_ALL'] = np.where(
@@ -153,16 +157,21 @@ recipes:
                 np.where(
                   df['COMMUNE_NAISSANCE'] == df['COMMUNE_NAISSANCE_ALTER'].str.normalize('NFKD').str.encode('ASCII','ignore').str.title(),
                   df['COMMUNE_NAISSANCE_ALL'],
-                  df['COMMUNE_NAISSANCE_ALL'] + " / " + df['COMMUNE_NAISSANCE_ALTER']
+                  df['COMMUNE_NAISSANCE_ALL'] + "/" + df['COMMUNE_NAISSANCE_ALTER']
                 )
               )
           - df['COMMUNE_NAISSANCE'] = np.where(
                 df['COMMUNE_NAISSANCE_REF'].str.contains('Arrondissement'),
-                df['COMMUNE_NAISSANCE_REF'],
-                df['COMMUNE_NAISSANCE_ALL']
+                df['COMMUNE_NAISSANCE_REF'].str.replace(r'^(\w+)\s.*$',r'\1',regex=True) + "/" + df['COMMUNE_NAISSANCE_REF'],
+                df['COMMUNE_NAISSANCE_ALL'] 
+            )
+          - df['COMMUNE_NAISSANCE'] = np.where(
+              df['COMMUNE_NAISSANCE'].str.contains("/"),
+              df['COMMUNE_NAISSANCE'].str.split("/"),
+              df['COMMUNE_NAISSANCE']
             )
       - delete:
-          select: CODE_INSEE_NAISSANCE_NORM|COMMUNE_NAISSANCE_(REF|ALTER|ALL)
+          select: CODE_INSEE_NAISSANCE_NORM|COMMUNE_NAISSANCE_(REF|ALL)
 
       #pays décès
       - map:
@@ -234,8 +243,18 @@ recipes:
                 np.where(
                   df['COMMUNE_DECES_ALTER'] == "",
                   df['COMMUNE_DECES'],
-                  df['COMMUNE_DECES'] + " / " + df['COMMUNE_DECES_ALTER']
+                  df['COMMUNE_DECES'] + "/" + df['COMMUNE_DECES_ALTER']
                 )
               )
+          - df['COMMUNE_DECES'] = np.where(
+                df['COMMUNE_DECES'].str.contains('Arrondissement'),
+                df['COMMUNE_DECES'].str.replace(r'^(\w+)\s.*$',r'\1',regex=True) + "/" + df['COMMUNE_DECES'],
+                df['COMMUNE_DECES'] 
+            )              
+          - df['COMMUNE_DECES'] = np.where(
+              df['COMMUNE_DECES'].str.contains("/"),
+              df['COMMUNE_DECES'].str.split("/"),
+              df['COMMUNE_DECES']
+            )      
       - delete:
           select: .*ALTER|.*NORM

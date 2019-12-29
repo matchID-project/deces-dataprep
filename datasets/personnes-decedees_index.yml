@@ -34,8 +34,12 @@ datasets:
           PRENOMS:
             type: text
           DATE_NAISSANCE:
-            type: text              
+            type: keyword              
           COMMUNE_NAISSANCE:
-            type: text
+            type: keyword
           PAYS_NAISSANCE:
-            type: text
+            type: keyword
+          COMMUNE_DECES:
+            type: keyword            
+          PAYS_DECES:
+            type: keyword
