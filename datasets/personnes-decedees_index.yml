@@ -17,7 +17,7 @@ datasets:
           analyzer: 
             autocomplete_analyzer:
               tokenizer: "edge_tokenizer2"
-              filter: ["asciifolding"]
+              filter: ["asciifolding", "lowercase"]
           tokenizer:
             edge_tokenizer2:
               type: "edge_ngram"
