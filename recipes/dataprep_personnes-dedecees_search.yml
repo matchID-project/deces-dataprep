@@ -48,7 +48,7 @@ recipes:
       - exec:
           - df['NOM'] = df['NOM'].str.title()
           - df['PRENOMS'] = df['PRENOMS'].str.title()
-          
+          - df['PRENOM'] = df['PRENOM'].str.title()
       #dates
       - replace:
           select: DATE_DECES|DATE_NAISSANCE
