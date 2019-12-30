@@ -15,7 +15,7 @@ datasets:
           number_of_replicas: 0
         analysis:
           analyzer: 
-            my_analyzer:
+            autocomplete_analyzer:
               tokenizer: "edge_tokenizer2"
               filter: ["asciifolding"]
           tokenizer:
@@ -31,8 +31,13 @@ datasets:
             type: keyword
           NOM:
             type: text
+            analyzer: autocomplete_analyzer
+          PRENOM:
+            type: text
+            analyzer: autocomplete_analyzer
           PRENOMS:
             type: text
+            analyzer: autocomplete_analyzer
           DATE_NAISSANCE:
             type: keyword              
           COMMUNE_NAISSANCE:
