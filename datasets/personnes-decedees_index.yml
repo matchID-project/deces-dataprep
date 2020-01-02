@@ -32,12 +32,15 @@ datasets:
           NOM:
             type: text
             analyzer: autocomplete_analyzer
+            search_analyzer: standard
           PRENOM:
             type: text
             analyzer: autocomplete_analyzer
+            search_analyzer: standard
           PRENOMS:
             type: text
             analyzer: autocomplete_analyzer
+            search_analyzer: standard
           DATE_NAISSANCE:
             type: keyword              
           COMMUNE_NAISSANCE:
