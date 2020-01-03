@@ -49,6 +49,10 @@ recipes:
           - df['NOM'] = df['NOM'].str.title()
           - df['PRENOMS'] = df['PRENOMS'].str.title()
           - df['PRENOM'] = df['PRENOM'].str.title()
+          - df['PRENOMS_NOM'] = df['PRENOMS'] + ' ' + df['NOM']
+          - df['PRENOMS_NOM'] = df['PRENOMS_NOM'].str.lower()
+          - df['PRENOM_NOM'] = df['PRENOM']+ " " + df['NOM']
+          - df['PRENOM_NOM'] = df['PRENOM_NOM'].str.lower()
       #dates
       - replace:
           select: DATE_DECES|DATE_NAISSANCE
