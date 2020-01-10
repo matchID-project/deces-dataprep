@@ -8,8 +8,8 @@ TIMEOUT = 2520
 
 dummy               := $(shell touch artifacts)
 
-scaffold:
-	${GIT} clone https://github.com/matchid-project/backend
+backend:
+	${GIT} clone https://github.com/matchid-project/backend backend
 	cp artifacts backend/artifacts
 	echo "export ES_NODES=1" >> backend/artifacts
 	echo "export PROJECTS=${PWD}/projects" >> backend/artifacts
@@ -50,5 +50,5 @@ down:
 clean:
 	sudo rm -rf backend
 
-all: scaffold install-prerequisites up recipe-run watch-run down backup s3-push clean
+all: backend install-prerequisites up recipe-run watch-run down backup s3-push clean
 	@echo ended with succes !!!
