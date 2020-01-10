@@ -34,7 +34,7 @@ watch-run:
 		ret=$$? ; \
 		if [ "$$ret" -ne "0" ] ; then \
 			echo "waiting for end of job $$timeout" ; \
-			tail $$f ;\
+			grep wrote $$f |awk 'BEGIN{s=0}{t=$$4;s+=$$12}END{print t " wrote " s}' ;\
 			sleep 10 ;\
 		fi ; ((timeout--)); done ; exit $$ret
 	@find backend/log/ -iname '*dataprep_personnes-dedecees_search*' | sort | tail -1 | xargs tail
