@@ -15,6 +15,9 @@ scaffold:
 	echo "export PROJECTS=${PWD}/projects" >> backend/artifacts
 	echo "export S3_BUCKET=fichier-des-personnes-decedees" >> backend/artifacts
 
+install-prerequisites:
+	${MAKE} -C backend install-prerequisites
+
 up:
 	${MAKE} -C backend backend elasticsearch
 	${MAKE} -C backend wait-backend
@@ -47,5 +50,5 @@ down:
 clean:
 	sudo rm -rf backend
 
-all: scaffold up recipe-run watch-run down backup s3-push clean
+all: scaffold install-prerequisites up recipe-run watch-run down backup s3-push clean
 	@echo ended with succes !!!
