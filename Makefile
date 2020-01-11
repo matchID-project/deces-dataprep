@@ -17,6 +17,7 @@ backend:
 
 install-prerequisites:
 	${MAKE} -C backend install-prerequisites
+	${MAKE} -C backend install-aws-cli
 
 up:
 	${MAKE} -C backend backend elasticsearch
