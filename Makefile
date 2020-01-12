@@ -5,6 +5,16 @@ GIT = $(shell which git)
 MAKE = $(shell which make)
 RECIPE = dataprep_personnes-dedecees_search
 TIMEOUT = 2520
+DATAGOUV_API = https://www.data.gouv.fr/api/1/datasets
+DATAGOUV_DATASET = fichier-des-personnes-decedees
+DATA_DIR = data
+# files to sync:
+FILES_TO_SYNC=(^|\s)deces-.*.txt(.gz)?($$|\s)
+# files to process:
+FILES_TO_PROCESS=deces-\d{4}(|-m\d.*).txt.gz
+DATAGOUV_CATALOG = ${DATA_DIR}/${DATAGOUV_DATASET}.datagouv.list
+S3_BUCKET = ${DATAGOUV_DATASET}
+S3_CATALOG = ${DATA_DIR}/${DATAGOUV_DATASET}.s3.list
 
 dummy               := $(shell touch artifacts)
 
