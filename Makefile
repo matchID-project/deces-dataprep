@@ -7,14 +7,15 @@ RECIPE = dataprep_personnes-dedecees_search
 TIMEOUT = 2520
 DATAGOUV_API = https://www.data.gouv.fr/api/1/datasets
 DATAGOUV_DATASET = fichier-des-personnes-decedees
-DATA_DIR = data
+DATA_DIR = ${PWD}/data
 # files to sync:
 FILES_TO_SYNC=(^|\s)deces-.*.txt(.gz)?($$|\s)
 # files to process:
-FILES_TO_PROCESS=deces-\d{4}(|-m\d.*).txt.gz
+FILES_TO_PROCESS=deces-[0-9]{4}(|-m\d.*).txt.gz
 DATAGOUV_CATALOG = ${DATA_DIR}/${DATAGOUV_DATASET}.datagouv.list
 S3_BUCKET = ${DATAGOUV_DATASET}
 S3_CATALOG = ${DATA_DIR}/${DATAGOUV_DATASET}.s3.list
+DATAPREP_VERSION := $(shell cat projects/personnes-decedees_search/recipes/dataprep_personnes-dedecees_search.yml projects/personnes-decedees_search/datasets/personnes-decedees_index.yml  | sha1sum | awk '{print $1}' | cut -c-8)
 
 dummy               := $(shell touch artifacts)
 include ./artifacts
@@ -108,7 +109,12 @@ watch-run:
 			sleep 10 ;\
 		fi ; ((timeout--)); done ; exit $$ret
 	@find backend/log/ -iname '*dataprep_personnes-dedecees_search*' | sort | tail -1 | xargs tail
-backup:
+
+s3.tag:
+	@aws s3 ls fichier-des-personnes-decedees | egrep '${FILES_TO_PROCESS}' | awk '{print $NF}' | sort | sha1sum | awk '{print $1}' | cut -c-8 > s3.tag
+
+backup: s3.tag
+	echo "export ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar" >> backend/artifacts
 	${MAKE} -C backend elasticsearch-backup
 
 s3-push:
@@ -120,5 +126,5 @@ down:
 clean: down
 	sudo rm -rf backend frontend ${DATA_DIR}
 
-all: config backend up recipe-run watch-run down backup s3-push clean
+all: config backend up s3.tag recipe-run watch-run down backup s3-push clean
 	@echo ended with succes !!!
