@@ -17,6 +17,14 @@ S3_BUCKET = ${DATAGOUV_DATASET}
 S3_CATALOG = ${DATA_DIR}/${DATAGOUV_DATASET}.s3.list
 
 dummy               := $(shell touch artifacts)
+include ./artifacts
+
+config:
+	@echo checking system prerequisites
+	@${MAKE} -C backend install-prerequisites install-aws-cli
+	@if [ ! -f "/usr/bin/curl" ]; then sudo apt-get install -y curl;fi
+	@if [ ! -f "/usr/bin/jq" ]; then sudo apt-get install -y jq;fi
+	@echo "prerequisites installed" > config
 
 backend:
 	${GIT} clone https://github.com/matchid-project/backend backend
@@ -61,5 +69,5 @@ down:
 clean:
 	sudo rm -rf backend
 
-all: backend install-prerequisites up recipe-run watch-run down backup s3-push clean
+all: config backend up recipe-run watch-run down backup s3-push clean
 	@echo ended with succes !!!
