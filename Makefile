@@ -37,12 +37,7 @@ dev: config backend
 	${MAKE} -C backend backend elasticsearch frontend
 
 up:
-	${MAKE} -C backend backend elasticsearch
-	${MAKE} -C backend wait-backend
-	${MAKE} -C backend wait-elasticsearch
-
-recipe-run:
-	${MAKE} -C backend recipe-run RECIPE=${RECIPE}
+	${MAKE} -C backend backend elasticsearch wait-backend wait-elasticsearch
 
 watch-run:
 	@timeout=${TIMEOUT} ; ret=1 ; \
