@@ -33,9 +33,8 @@ backend:
 	echo "export PROJECTS=${PWD}/projects" >> backend/artifacts
 	echo "export S3_BUCKET=${S3_BUCKET}" >> backend/artifacts
 
-install-prerequisites:
-	${MAKE} -C backend install-prerequisites
-	${MAKE} -C backend install-aws-cli
+dev: config backend
+	${MAKE} -C backend backend elasticsearch frontend
 
 up:
 	${MAKE} -C backend backend elasticsearch
