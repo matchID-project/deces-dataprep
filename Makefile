@@ -26,6 +26,58 @@ config:
 	@if [ ! -f "/usr/bin/jq" ]; then sudo apt-get install -y jq;fi
 	@echo "prerequisites installed" > config
 
+${DATA_DIR}:
+	@if [ ! -d "${DATA_DIR}" ]; then mkdir -p ${DATA_DIR};fi
+
+${DATAGOUV_CATALOG}: config ${DATA_DIR}
+	@echo getting ${DATAGOUV_DATASET} catalog from data.gouv API ${DATAGOUV_API}
+	@curl -s --fail ${DATAGOUV_API}/${DATAGOUV_DATASET}/ | \
+		jq  -cr '.resources[] | .title + " " +.checksum.value + " " + .url' | sort > ${DATAGOUV_CATALOG}
+
+datagouv-get-catalog: ${DATAGOUV_CATALOG}
+
+datagouv-get-files: ${DATAGOUV_CATALOG}
+	@if [ -f "${S3_CATALOG}" ]; then\
+		(echo egrep -v $$(cat ${S3_CATALOG} | tr '\n' '|' | sed 's/.gz//g;s/^/"(/;s/|$$/)"/') ${DATAGOUV_CATALOG} | sh > ${DATA_DIR}/tmp.list) || true;\
+	else\
+		cp ${DATAGOUV_CATALOG} ${DATA_DIR}/tmp.list;\
+	fi
+
+	@if [ -s "${DATA_DIR}/tmp.list" ]; then\
+		i=0;\
+		for file in $$(awk '{print $$1}' ${DATA_DIR}/tmp.list); do\
+			if [ ! -f ${DATA_DIR}/$$file.gz.sha1 ]; then\
+				echo getting $$file ;\
+				grep $$file ${DATA_DIR}/tmp.list | awk '{print $$3}' | xargs curl -s > ${DATA_DIR}/$$file; \
+				grep $$file ${DATA_DIR}/tmp.list | awk '{print $$2}' > ${DATA_DIR}/$$file.sha1.src; \
+				sha1sum < ${DATA_DIR}/$$file | awk '{print $$1}' > ${DATA_DIR}/$$file.sha1.dst; \
+				((diff ${DATA_DIR}/$$file.sha1.src ${DATA_DIR}/$$file.sha1.dst > /dev/null) || echo error downloading $$file); \
+				gzip ${DATA_DIR}/$$file; \
+				sha1sum ${DATA_DIR}/$$file.gz > ${DATA_DIR}/$$file.gz.sha1; \
+				((i++));\
+			fi;\
+		done;\
+		if [ "$$i" == "0" ]; then\
+			echo no new file downloaded from datagouv;\
+		else\
+			echo "$$i file(s) donwloaded from datagouv";\
+		fi;\
+	else\
+		echo no new file downloaded from datagouv;\
+	fi
+
+${S3_CATALOG}: config ${DATA_DIR}
+	@echo getting ${S3_BUCKET} catalog from s3 API
+	@aws s3 ls ${S3_BUCKET} | awk '{print $$NF}' | egrep '${FILES_TO_SYNC}' | sort > ${S3_CATALOG}
+
+s3-get-catalog: ${S3_CATALOG}
+
+datagouv-to-s3: s3-get-catalog datagouv-get-files
+	@for file in $$(ls ${DATA_DIR} | egrep '${FILES_TO_SYNC}');do\
+		aws s3 cp ${DATA_DIR}/$$file s3://${S3_BUCKET}/$$file;\
+		aws s3api put-object-acl --acl public-read --bucket ${S3_BUCKET} --key $$file && echo $$file acl set to public;\
+	done
+
 backend:
 	@echo configuring matchID
 	@${GIT} clone https://github.com/matchid-project/backend backend
