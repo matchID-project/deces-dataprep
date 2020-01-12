@@ -31,7 +31,7 @@ backend:
 	cp artifacts backend/artifacts
 	echo "export ES_NODES=1" >> backend/artifacts
 	echo "export PROJECTS=${PWD}/projects" >> backend/artifacts
-	echo "export S3_BUCKET=fichier-des-personnes-decedees" >> backend/artifacts
+	echo "export S3_BUCKET=${S3_BUCKET}" >> backend/artifacts
 
 install-prerequisites:
 	${MAKE} -C backend install-prerequisites
