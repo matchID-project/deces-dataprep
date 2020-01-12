@@ -4,10 +4,10 @@ datasets:
     # fixed with format with no header
     connector: s3
     table:
-      regex: deces-\d{4}(|-m\d.*).txt.gz
+      regex: !ENV ${FILES_TO_PROCESS}
     compression: gzip
     type: fwf
-    widths: 
+    widths:
       - 80
       - 1
       - 8
@@ -17,7 +17,7 @@ datasets:
       - 8
       - 5
       - 10
-    names: 
+    names:
       - NOM_PRENOMS
       - SEXE
       - DATE_NAISSANCE

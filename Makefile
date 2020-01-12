@@ -27,14 +27,16 @@ config:
 	@echo "prerequisites installed" > config
 
 backend:
-	${GIT} clone https://github.com/matchid-project/backend backend
-	cp artifacts backend/artifacts
-	echo "export ES_NODES=1" >> backend/artifacts
-	echo "export PROJECTS=${PWD}/projects" >> backend/artifacts
-	echo "export S3_BUCKET=${S3_BUCKET}" >> backend/artifacts
+	@echo configuring matchID
+	@${GIT} clone https://github.com/matchid-project/backend backend
+	@cp artifacts backend/artifacts
+	@cp docker-compose-local.yml backend/docker-compose-local.yml
+	@echo "export ES_NODES=1" >> backend/artifacts
+	@echo "export PROJECTS=${PWD}/projects" >> backend/artifacts
+	@echo "export S3_BUCKET=${S3_BUCKET}" >> backend/artifacts
 
 dev: config backend
-	${MAKE} -C backend backend elasticsearch frontend
+	${MAKE} -C backend frontend-build backend elasticsearch frontend
 
 up:
 	${MAKE} -C backend backend elasticsearch wait-backend wait-elasticsearch
@@ -58,9 +60,9 @@ s3-push:
 	${MAKE} -C backend elasticsearch-s3-push S3_BUCKET=fichier-des-personnes-decedees
 
 down:
-	${MAKE} -C backend backend-stop elasticsearch-stop
+	${MAKE} -C backend backend-stop elasticsearch-stop frontend-stop
 
-clean:
+clean: down
 	sudo rm -rf backend frontend ${DATA_DIR}
 
 all: config backend up recipe-run watch-run down backup s3-push clean

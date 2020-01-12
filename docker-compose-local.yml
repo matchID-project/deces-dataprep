@@ -1,0 +1,7 @@
+version: '2'
+
+services:
+  backend:
+    environment:
+      - S3_BUCKET
+      - FILES_TO_PROCESS
