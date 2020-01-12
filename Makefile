@@ -61,7 +61,7 @@ down:
 	${MAKE} -C backend backend-stop elasticsearch-stop
 
 clean:
-	sudo rm -rf backend
+	sudo rm -rf backend frontend ${DATA_DIR}
 
 all: config backend up recipe-run watch-run down backup s3-push clean
 	@echo ended with succes !!!
