@@ -4,4 +4,6 @@ connectors:
     chunk: 10000
     endpoint_url: https://s3.fr-par.scw.cloud
     region_name: fr-par
-    bucket: fichier-des-personnes-decedees
+    bucket: !ENV ${S3_BUCKET}
+    aws_access_key_id: !ENV ${aws_access_key_id}
+    aws_secret_access_key: !ENV ${aws_secret_access_key}
