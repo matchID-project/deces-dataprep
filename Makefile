@@ -41,6 +41,9 @@ dev: config backend
 up:
 	${MAKE} -C backend backend elasticsearch wait-backend wait-elasticsearch
 
+recipe-run:
+	${MAKE} -C backend recipe-run RECIPE=${RECIPE}
+
 watch-run:
 	@timeout=${TIMEOUT} ; ret=1 ; \
 		until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do \
