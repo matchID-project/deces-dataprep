@@ -143,7 +143,7 @@ os-add-sshkey: ${SSHKEY}
 		 echo "ssh key deployed with success" ) \
 	  )
 
-os-instance-order:
+os-instance-order: os-add-sshkey
 	@(\
 		(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | (egrep '\s${APP}\s' > /dev/null) && \
 		echo "openstack instance already ordered")\
@@ -185,6 +185,7 @@ all: config all-step1 watch-run all-step2
 # launch remote
 remote-config: os-instance-wait
 	@OS_HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
+		(ssh-keygen -R $$OS_HOST > /dev/null 2>&1) || true;\
 		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST git clone ${GITROOT}/${APP};\
 		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST sudo apt-get update -y;\
 		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST sudo apt-get install -y make;\
@@ -192,14 +193,22 @@ remote-config: os-instance-wait
 
 remote-step1:
 	@OS_HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//');\
-		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST make -C ${APP} all-step1;
+		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST 'echo "export FILES_TO_PROCESS=${FILES_TO_PROCESS}" > ${APP}/artifacts';\
+		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST make -C ${APP} all-step1 aws_access_key_id=${aws_access_key_id} aws_secret_access_key=${aws_secret_access_key};
 
-remote-status:
+remote-watch:
 	@OS_HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//');\
 		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST make -C ${APP} watch-run;
 
 remote-step2:
 	@OS_HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//');\
-		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST make -C ${APP} step2;
+		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST mkdir -p .aws;\
+		cat aws_config | ${REMOTE_HOST} ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST "cat > .aws/config";\
+		echo -e "[default]\naws_access_key_id=${aws_access_key_id}\naws_secret_access_key=${aws_secret_access_key}\n" |\
+			ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST 'cat > .aws/credentials';\
+		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST make -C ${APP} all-step2;\
+		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST rm .aws/credentials;
 
 remote-clean: os-instance-delete
+
+remote-all: remote-config remote-step1 remote-watch remote-step2 remote-clean
