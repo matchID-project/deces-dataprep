@@ -24,7 +24,7 @@ SSHID=matchid@matchid.project.gmail.com
 SSHKEY_PRIVATE = ~/.ssh/id_rsa_${APP}
 SSHKEY = ${SSHKEY_PRIVATE}.pub
 SSHKEYNAME = ${APP}
-SSHOPTS=-o "StrictHostKeyChecking no"
+SSHOPTS=-o "StrictHostKeyChecking no" -i ${SSHKEY}
 OS_TIMEOUT = 120
 
 dummy               := $(shell touch artifacts)
