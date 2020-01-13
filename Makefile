@@ -18,6 +18,7 @@ FILES_TO_PROCESS=deces-[0-9]{4}(|-m\d.*).txt.gz
 DATAGOUV_CATALOG = ${DATA_DIR}/${DATAGOUV_DATASET}.datagouv.list
 S3_BUCKET = ${DATAGOUV_DATASET}
 S3_CATALOG = ${DATA_DIR}/${DATAGOUV_DATASET}.s3.list
+AWS_CONFIG = aws_scaleway.conf
 DATAPREP_VERSION := $(shell cat projects/personnes-decedees_search/recipes/dataprep_personnes-dedecees_search.yml projects/personnes-decedees_search/datasets/personnes-decedees_index.yml  | sha1sum | awk '{print $1}' | cut -c-8)
 SSHID=matchid@matchid.project.gmail.com
 SSHKEY_PRIVATE = ~/.ssh/id_rsa_${APP}
@@ -200,10 +201,10 @@ remote-watch:
 	@OS_HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//');\
 		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST make -C ${APP} watch-run;
 
-remote-step2:
+remote-step2: remote-watch
 	@OS_HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//');\
 		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST mkdir -p .aws;\
-		cat aws_config | ${REMOTE_HOST} ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST "cat > .aws/config";\
+		cat ${AWS_CONFIG} | ${REMOTE_HOST} ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST "cat > .aws/config";\
 		echo -e "[default]\naws_access_key_id=${aws_access_key_id}\naws_secret_access_key=${aws_secret_access_key}\n" |\
 			ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST 'cat > .aws/credentials';\
 		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST make -C ${APP} all-step2;\
