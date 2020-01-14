@@ -24,8 +24,11 @@ SSHID=matchid@matchid.project.gmail.com
 SSHKEY_PRIVATE = ~/.ssh/id_rsa_${APP}
 SSHKEY = ${SSHKEY_PRIVATE}.pub
 SSHKEYNAME = ${APP}
-SSHOPTS=-o "StrictHostKeyChecking no" -i ${SSHKEY}
-OS_TIMEOUT = 120
+OS_TIMEOUT = 60
+SCW_SERVER_FILE_ID=scw.id
+SCW_TIMEOUT= 180
+CLOUD=SCW
+SSHOPTS=-o "StrictHostKeyChecking no" -i ${SSHKEY} ${CLOUD_SSHOPTS}
 
 dummy               := $(shell touch artifacts)
 include ./artifacts
@@ -134,7 +137,7 @@ ${SSHKEY}:
 	@echo ssh keygen
 	@ssh-keygen -t rsa -b 4096 -C "${SSHID}" -f ${SSHKEY_PRIVATE} -q -N "${SSH_PASSPHRASE}"
 
-os-add-sshkey: ${SSHKEY}
+OS-add-sshkey: ${SSHKEY}
 	@(\
 		(nova keypair-list | sed 's/|//g' | egrep -v '\-\-\-|Name' | (egrep '^\s*${SSHKEYNAME}\s' > /dev/null) &&\
 		 echo "ssh key already deployed" ) \
@@ -144,7 +147,7 @@ os-add-sshkey: ${SSHKEY}
 		 echo "ssh key deployed with success" ) \
 	  )
 
-os-instance-order: os-add-sshkey
+OS-instance-order: OS-add-sshkey
 	@(\
 		(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | (egrep '\s${APP}\s' > /dev/null) && \
 		echo "openstack instance already ordered")\
@@ -153,7 +156,7 @@ os-instance-order: os-add-sshkey
 	 		echo "openstack intance ordered with success") || echo "openstance instance order failed"\
 	)
 
-os-instance-wait: os-instance-order
+OS-instance-wait: OS-instance-order
 	@timeout=${OS_TIMEOUT} ; ret=1 ; until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do\
 	  nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | (egrep '\s${APP}\s.*Running' > /dev/null) ;\
 	  ret=$$? ; \
@@ -161,8 +164,61 @@ os-instance-wait: os-instance-order
 	  ((timeout--)); sleep 1 ; \
 	done ; exit $$ret
 
-os-instance-delete:
+OS-instance-delete:
 	nova delete ${APP}
+
+${SCW_SERVER_FILE_ID}:
+	@curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" \
+		-H "Content-Type: application/json" \
+		-d '{"name": "${APP}", "image": "${SCW_IMAGE_ID}", "commercial_type": "${SCW_FLAVOR}", "organization": "${SCW_ORGANIZATION_ID}"}' | jq -r '.server.id' > ${SCW_SERVER_FILE_ID}
+
+SCW-instance-start: ${SCW_SERVER_FILE_ID}
+	@SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
+		(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .state" | (grep running > /dev/null) && \
+		echo scaleway instance already running)\
+		|| \
+	 	(\
+			(\
+				(curl -s --fail ${SCW_API}/servers/$$SCW_SERVER_ID/action -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" \
+					-H "Content-Type: application/json" -d '{"action": "poweron"}' > /dev/null) &&\
+				echo scaleway instance starting\
+			) || echo scaleway instance still starting\
+		)
+
+SCW-instance-wait-running: SCW-instance-start
+	@SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
+	timeout=${SCW_TIMEOUT} ; ret=1 ; until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do\
+	  curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .state" | (grep running > /dev/null);\
+	  ret=$$? ; \
+	  if [ "$$ret" -ne "0" ] ; then echo "waiting for scaleway instance $$SCW_SERVER_ID to start $$timeout" ; fi ;\
+	  ((timeout--)); sleep 1 ; \
+    done ; exit $$ret
+
+SCW-instance-wait-ssh: SCW-instance-wait-running
+	@SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
+	HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
+	(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
+	timeout=${SCW_TIMEOUT} ; ret=1 ; until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do\
+	  ((ssh ${SSHOPTS} root@$$HOST sleep 1) > /dev/null 2>&1);\
+	  ret=$$? ; \
+	  if [ "$$ret" -ne "0" ] ; then echo "waiting for ssh service on scaleway instance $$SCW_SERVER_ID - $$timeout" ; fi ;\
+	  ((timeout--)); sleep 1 ; \
+    done ; exit $$ret
+
+SCW-instance-wait: SCW-instance-wait-ssh
+
+
+SCW-instance-delete:
+	@if [ -f "${SCW_SERVER_FILE_ID}" ];then\
+		SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
+		((curl -s --fail ${SCW_API}/servers/$$SCW_SERVER_ID/action -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" \
+			-H "Content-Type: application/json" -d '{"action": "terminate"}' > /dev/null) && \
+			echo scaleway server terminating) ||\
+		echo scaleway error while terminating server;\
+		rm ${SCW_SERVER_FILE_ID};\
+	else\
+		echo no scw.id for deletion;\
+	fi
 
 down:
 	${MAKE} -C ${GITBACKEND} backend-stop elasticsearch-stop frontend-stop
@@ -184,32 +240,69 @@ all: config all-step1 watch-run all-step2
 	@echo ended with succes !!!
 
 # launch remote
-remote-config: os-instance-wait
-	@OS_HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
-		(ssh-keygen -R $$OS_HOST > /dev/null 2>&1) || true;\
-		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST git clone ${GITROOT}/${APP};\
-		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST sudo apt-get update -y;\
-		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST sudo apt-get install -y make;\
-		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST make -C ${APP} all-step0;
+
+remote-config: ${CLOUD}-instance-wait
+	@if [ "${CLOUD}" == "os" ];then\
+		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
+		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
+		SSHUSER=${OS_SSHUSER};\
+	else\
+		SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
+		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
+		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
+		SSHUSER=${SCW_SSHUSER};\
+		ssh ${SSHOPTS} root@$$HOST apt-get install -o Dpkg::Options::="--force-confold" -yq sudo;\
+	fi;\
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST git clone ${GITROOT}/${APP};\
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST sudo apt-get update -y;\
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST sudo apt-get install -y make;\
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step0;
 
 remote-step1:
-	@OS_HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//');\
-		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST 'echo "export FILES_TO_PROCESS=${FILES_TO_PROCESS}" > ${APP}/artifacts';\
-		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST make -C ${APP} all-step1 aws_access_key_id=${aws_access_key_id} aws_secret_access_key=${aws_secret_access_key};
+	@if [ "${CLOUD}" == "os" ];then\
+		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
+		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
+		SSHUSER=${OS_SSHUSER};\
+	else\
+		SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
+		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
+		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
+		SSHUSER=${SCW_SSHUSER};\
+	fi;\
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST 'echo "export FILES_TO_PROCESS=${FILES_TO_PROCESS}" > ${APP}/artifacts';\
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step1 aws_access_key_id=${aws_access_key_id} aws_secret_access_key=${aws_secret_access_key};
 
 remote-watch:
-	@OS_HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//');\
-		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST make -C ${APP} watch-run;
+	@if [ "${CLOUD}" == "os" ];then\
+		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
+		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
+		SSHUSER=${OS_SSHUSER};\
+	else\
+		SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
+		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
+		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
+		SSHUSER=${SCW_SSHUSER};\
+	fi;\
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} watch-run;
 
 remote-step2: remote-watch
-	@OS_HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//');\
-		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST mkdir -p .aws;\
-		cat ${AWS_CONFIG} | ${REMOTE_HOST} ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST "cat > .aws/config";\
+	@if [ "${CLOUD}" == "os" ];then\
+		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
+		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
+		SSHUSER=${OS_SSHUSER};\
+	else\
+		SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
+		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
+		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
+		SSHUSER=${SCW_SSHUSER};\
+	fi;\
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST mkdir -p .aws;\
+		cat ${AWS_CONFIG} | ${REMOTE_HOST} ssh ${SSHOPTS} $$SSHUSER@$$HOST "cat > .aws/config";\
 		echo -e "[default]\naws_access_key_id=${aws_access_key_id}\naws_secret_access_key=${aws_secret_access_key}\n" |\
-			ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST 'cat > .aws/credentials';\
-		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST make -C ${APP} all-step2;\
-		ssh ${SSHOPTS} ${OS_SSHUSER}@$$OS_HOST rm .aws/credentials;
+			ssh ${SSHOPTS} $$SSHUSER@$$HOST 'cat > .aws/credentials';\
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step2;\
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST rm .aws/credentials;
 
-remote-clean: os-instance-delete
+remote-clean: ${CLOUD}-instance-delete
 
 remote-all: remote-config remote-step1 remote-watch remote-step2 remote-clean
