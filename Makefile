@@ -242,7 +242,7 @@ all: config all-step1 watch-run all-step2
 # launch remote
 
 remote-config: ${CLOUD}-instance-wait
-	@if [ "${CLOUD}" == "os" ];then\
+	@if [ "${CLOUD}" == "OS" ];then\
 		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
 		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
 		SSHUSER=${OS_SSHUSER};\
@@ -259,7 +259,7 @@ remote-config: ${CLOUD}-instance-wait
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step0;
 
 remote-step1:
-	@if [ "${CLOUD}" == "os" ];then\
+	@if [ "${CLOUD}" == "OS" ];then\
 		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
 		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
 		SSHUSER=${OS_SSHUSER};\
@@ -273,7 +273,7 @@ remote-step1:
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step1 aws_access_key_id=${aws_access_key_id} aws_secret_access_key=${aws_secret_access_key};
 
 remote-watch:
-	@if [ "${CLOUD}" == "os" ];then\
+	@if [ "${CLOUD}" == "OS" ];then\
 		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
 		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
 		SSHUSER=${OS_SSHUSER};\
@@ -286,7 +286,7 @@ remote-watch:
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} watch-run;
 
 remote-step2: remote-watch
-	@if [ "${CLOUD}" == "os" ];then\
+	@if [ "${CLOUD}" == "OS" ];then\
 		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
 		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
 		SSHUSER=${OS_SSHUSER};\
