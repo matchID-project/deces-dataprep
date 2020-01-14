@@ -18,7 +18,7 @@ FILES_TO_PROCESS=deces-[0-9]{4}(|-m\d.*).txt.gz
 DATAGOUV_CATALOG = ${DATA_DIR}/${DATAGOUV_DATASET}.datagouv.list
 S3_BUCKET = ${DATAGOUV_DATASET}
 S3_CATALOG = ${DATA_DIR}/${DATAGOUV_DATASET}.s3.list
-AWS_CONFIG = aws_scaleway.conf
+S3_CONFIG = S3_scaleway.conf
 DATAPREP_VERSION := $(shell cat projects/personnes-decedees_search/recipes/dataprep_personnes-dedecees_search.yml projects/personnes-decedees_search/datasets/personnes-decedees_index.yml  | sha1sum | awk '{print $1}' | cut -c-8)
 SSHID=matchid@matchid.project.gmail.com
 SSHKEY_PRIVATE = ~/.ssh/id_rsa_${APP}
@@ -297,7 +297,7 @@ remote-step2: remote-watch
 		SSHUSER=${SCW_SSHUSER};\
 	fi;\
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST mkdir -p .aws;\
-		cat ${AWS_CONFIG} | ${REMOTE_HOST} ssh ${SSHOPTS} $$SSHUSER@$$HOST "cat > .aws/config";\
+		cat ${S3_CONFIG} | ${REMOTE_HOST} ssh ${SSHOPTS} $$SSHUSER@$$HOST "cat > .aws/config";\
 		echo -e "[default]\naws_access_key_id=${S3_access_key_id}\naws_secret_access_key=${S3_secret_access_key}\n" |\
 			ssh ${SSHOPTS} $$SSHUSER@$$HOST 'cat > .aws/credentials';\
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step2;\
