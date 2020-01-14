@@ -105,7 +105,7 @@ dev: config backend
 	${MAKE} -C ${GITBACKEND} frontend-build backend elasticsearch frontend
 
 up:
-	${MAKE} -C ${GITBACKEND} backend elasticsearch wait-backend wait-elasticsearch
+	${MAKE} -C ${GITBACKEND} elasticsearch wait-elasticsearch backend wait-backend
 
 recipe-run:
 	${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE}
