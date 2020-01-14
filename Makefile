@@ -140,11 +140,11 @@ ${SSHKEY}:
 OS-add-sshkey: ${SSHKEY}
 	@(\
 		(nova keypair-list | sed 's/|//g' | egrep -v '\-\-\-|Name' | (egrep '^\s*${SSHKEYNAME}\s' > /dev/null) &&\
-		 echo "ssh key already deployed" ) \
+		 echo "ssh key already deployed to openstack" ) \
 	  || \
 		(nova keypair-add --pub-key ${SSHKEY} ${SSHKEYNAME} &&\
 		 nova keypair-list | sed 's/|//g' | egrep -v '\-\-\-|Name' | (egrep '^\s*${SSHKEYNAME}\s' > /dev/null) &&\
-		 echo "ssh key deployed with success" ) \
+		 echo "ssh key deployed with success to openstack" ) \
 	  )
 
 OS-instance-order: OS-add-sshkey
