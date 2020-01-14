@@ -149,6 +149,57 @@ ${SSHKEY}:
 	@echo ssh keygen
 	@ssh-keygen -t rsa -b 4096 -C "${SSHID}" -f ${SSHKEY_PRIVATE} -q -N "${SSH_PASSPHRASE}"
 
+EC2-add-sshkey: install-aws-cli
+	@(\
+		((${AWS} ${EC2} describe-key-pairs --key-name ${SSHKEYNAME}  > /dev/null 2>&1) &&\
+			echo "ssh key already deployed to EC2") \
+	|| \
+		((${AWS} ${EC2} import-key-pair --key-name ${SSHKEYNAME} --public-key-material file://${SSHKEY} > /dev/null 2>&1) &&\
+			echo "ssh key deployed with success to EC2") \
+	)
+
+${EC2_SERVER_FILE_ID}:
+	@((${AWS} ${EC2} run-instances --key-name ${SSHKEYNAME} \
+		 	--image-id ${EC2_IMAGE_ID} --instance-type ${EC2_FLAVOR_TYPE} \
+			--tag-specifications "Tags=[{Key=Name,Value=${APP}}]" | jq -r '.Instances[0].InstanceId' > ${EC2_SERVER_FILE_ID} 2>&1 \
+		 ) &&\
+			echo "EC2 instance ordered with success")
+
+EC2-instance-order: EC2-add-sshkey ${EC2_SERVER_FILE_ID}
+
+
+
+EC2-instance-wait-running: EC2-instance-order
+	@EC2_SERVER_ID=$$(cat ${EC2_SERVER_FILE_ID});\
+	timeout=${EC2_TIMEOUT} ; ret=1 ; until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do\
+	  ${AWS} ${EC2} describe-instances --instance-ids $$EC2_SERVER_ID | jq -c '.Reservations[].Instances[].State.Name' | (grep running > /dev/null);\
+	  ret=$$? ; \
+	  if [ "$$ret" -ne "0" ] ; then echo "waiting for EC2 instance $$EC2_SERVER_ID to start $$timeout" ; fi ;\
+	  ((timeout--)); sleep 1 ; \
+    done ; exit $$ret
+
+EC2-instance-wait-ssh: EC2-instance-wait-running
+	@EC2_SERVER_ID=$$(cat ${EC2_SERVER_FILE_ID});\
+	HOST=$$(${AWS} ${EC2} describe-instances --instance-ids $$EC2_SERVER_ID |\
+		jq -r ".Reservations[].Instances[].${EC2_IP}");\
+	(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
+	timeout=${EC2_TIMEOUT} ; ret=1 ; until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do\
+	  ((ssh ${SSHOPTS} ${EC2_SSHUSER}@$$HOST sleep 1) > /dev/null 2>&1);\
+	  ret=$$? ; \
+	  if [ "$$ret" -ne "0" ] ; then echo "waiting for ssh service on EC2 instance $$EC2_SERVER_ID - $$timeout" ; fi ;\
+	  ((timeout--)); sleep 1 ; \
+    done ; exit $$ret
+
+EC2-instance-wait: EC2-instance-wait-ssh
+
+EC2-instance-delete:
+	@if [ -f "${EC2_SERVER_FILE_ID}" ];then\
+		EC2_SERVER_ID=$$(cat ${EC2_SERVER_FILE_ID});\
+		${AWS} ${EC2} terminate-instances --instance-ids $$EC2_SERVER_ID |\
+			jq -r '.TerminatingInstances[0].CurrentState.Name' | sed 's/$$/ EC2 instance/';\
+	fi
+	@rm ${EC2_SERVER_FILE_ID} > /dev/null 2>&1 | true;
+
 OS-add-sshkey: ${SSHKEY}
 	@(\
 		(nova keypair-list | sed 's/|//g' | egrep -v '\-\-\-|Name' | (egrep '^\s*${SSHKEYNAME}\s' > /dev/null) &&\
@@ -258,6 +309,12 @@ remote-config: ${CLOUD}-instance-wait
 		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
 		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
 		SSHUSER=${OS_SSHUSER};\
+	elif [ "${CLOUD}" == "EC2" ];then\
+		EC2_SERVER_ID=$$(cat ${EC2_SERVER_FILE_ID});\
+		HOST=$$(${AWS} ${EC2} describe-instances --instance-ids $$EC2_SERVER_ID |\
+				jq -r ".Reservations[].Instances[].${EC2_IP}");\
+		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
+		SSHUSER=${EC2_SSHUSER};\
 	else\
 		SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
 		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
@@ -275,6 +332,12 @@ remote-step1:
 		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
 		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
 		SSHUSER=${OS_SSHUSER};\
+	elif [ "${CLOUD}" == "EC2" ];then\
+		EC2_SERVER_ID=$$(cat ${EC2_SERVER_FILE_ID});\
+		HOST=$$(${AWS} ${EC2} describe-instances --instance-ids $$EC2_SERVER_ID |\
+				jq -r ".Reservations[].Instances[].${EC2_IP}");\
+		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
+		SSHUSER=${EC2_SSHUSER};\
 	else\
 		SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
 		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
@@ -289,6 +352,12 @@ remote-watch:
 		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
 		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
 		SSHUSER=${OS_SSHUSER};\
+	elif [ "${CLOUD}" == "EC2" ];then\
+		EC2_SERVER_ID=$$(cat ${EC2_SERVER_FILE_ID});\
+		HOST=$$(${AWS} ${EC2} describe-instances --instance-ids $$EC2_SERVER_ID |\
+				jq -r ".Reservations[].Instances[].${EC2_IP}");\
+		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
+		SSHUSER=${EC2_SSHUSER};\
 	else\
 		SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
 		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
@@ -302,6 +371,12 @@ remote-step2: remote-watch
 		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
 		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
 		SSHUSER=${OS_SSHUSER};\
+	elif [ "${CLOUD}" == "EC2" ];then\
+		EC2_SERVER_ID=$$(cat ${EC2_SERVER_FILE_ID});\
+		HOST=$$(${AWS} ${EC2} describe-instances --instance-ids $$EC2_SERVER_ID |\
+				jq -r ".Reservations[].Instances[].${EC2_IP}");\
+		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
+		SSHUSER=${EC2_SSHUSER};\
 	else\
 		SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
 		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\

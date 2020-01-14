@@ -1,0 +1,9 @@
+#outscale conf
+export EC2_PROFILE=outscale
+export EC2_ENDPOINT_OPTION=--endpoint https://fcu.eu-west-2.outscale.com
+#ubuntu 18.04
+export EC2_IMAGE_ID=ami-976177b8
+export EC2_FLAVOR_TYPE=tinav4.c4r8
+EC2_IP=PrivateIpAddress
+EC2_IP=PublicIpAddress
+EC2_SSHUSER=outscale
