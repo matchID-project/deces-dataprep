@@ -270,7 +270,7 @@ remote-step1:
 		SSHUSER=${SCW_SSHUSER};\
 	fi;\
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST 'echo "export FILES_TO_PROCESS=${FILES_TO_PROCESS}" > ${APP}/artifacts';\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step1 aws_access_key_id=${aws_access_key_id} aws_secret_access_key=${aws_secret_access_key};
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step1 aws_access_key_id=${S3_access_key_id} aws_secret_access_key=${S3_secret_access_key};
 
 remote-watch:
 	@if [ "${CLOUD}" == "OS" ];then\
@@ -298,7 +298,7 @@ remote-step2: remote-watch
 	fi;\
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST mkdir -p .aws;\
 		cat ${AWS_CONFIG} | ${REMOTE_HOST} ssh ${SSHOPTS} $$SSHUSER@$$HOST "cat > .aws/config";\
-		echo -e "[default]\naws_access_key_id=${aws_access_key_id}\naws_secret_access_key=${aws_secret_access_key}\n" |\
+		echo -e "[default]\naws_access_key_id=${S3_access_key_id}\naws_secret_access_key=${S3_secret_access_key}\n" |\
 			ssh ${SSHOPTS} $$SSHUSER@$$HOST 'cat > .aws/credentials';\
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step2;\
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST rm .aws/credentials;
