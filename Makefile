@@ -27,6 +27,11 @@ SSHKEYNAME = ${APP}
 OS_TIMEOUT = 60
 SCW_SERVER_FILE_ID=scw.id
 SCW_TIMEOUT= 180
+AWS=~/.local/bin/aws
+EC2_PROFILE=default
+EC2=ec2 ${EC2_ENDPOINT_OPTION} --profile ${EC2_PROFILE}
+EC2_SERVER_FILE_ID=ec2.id
+EC2_TIMEOUT= 120
 CLOUD=SCW
 SSHOPTS=-o "StrictHostKeyChecking no" -i ${SSHKEY} ${CLOUD_SSHOPTS}
 
@@ -39,6 +44,13 @@ config:
 	@if [ ! -f "/usr/bin/curl" ]; then sudo apt-get install -y curl;fi
 	@if [ ! -f "/usr/bin/jq" ]; then sudo apt-get install -y jq;fi
 	@echo "prerequisites installed" > config
+
+install-aws-cli:
+ifeq ("$(wildcard ${AWS})","")
+	sudo apt-get update; true
+	sudo apt install -y python-pip; true
+	pip install aws awscli_plugin_endpoint ; true
+endif
 
 ${DATA_DIR}:
 	@if [ ! -d "${DATA_DIR}" ]; then mkdir -p ${DATA_DIR};fi
@@ -82,14 +94,14 @@ datagouv-get-files: ${DATAGOUV_CATALOG}
 
 ${S3_CATALOG}: config ${DATA_DIR}
 	@echo getting ${S3_BUCKET} catalog from s3 API
-	@aws s3 ls ${S3_BUCKET} | awk '{print $$NF}' | egrep '${FILES_TO_SYNC}' | sort > ${S3_CATALOG}
+	@${AWS} s3 ls ${S3_BUCKET} | awk '{print $$NF}' | egrep '${FILES_TO_SYNC}' | sort > ${S3_CATALOG}
 
 s3-get-catalog: ${S3_CATALOG}
 
 datagouv-to-s3: s3-get-catalog datagouv-get-files
 	@for file in $$(ls ${DATA_DIR} | egrep '${FILES_TO_SYNC}');do\
-		aws s3 cp ${DATA_DIR}/$$file s3://${S3_BUCKET}/$$file;\
-		aws s3api put-object-acl --acl public-read --bucket ${S3_BUCKET} --key $$file && echo $$file acl set to public;\
+		${AWS} s3 cp ${DATA_DIR}/$$file s3://${S3_BUCKET}/$$file;\
+		${AWS} s3api put-object-acl --acl public-read --bucket ${S3_BUCKET} --key $$file && echo $$file acl set to public;\
 	done
 
 ${GITBACKEND}:
