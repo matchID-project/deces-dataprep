@@ -343,18 +343,15 @@ remote-config: ${CLOUD}-instance-wait
 remote-step1:
 	@if [ "${CLOUD}" == "OS" ];then\
 		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
-		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
 		SSHUSER=${OS_SSHUSER};\
 	elif [ "${CLOUD}" == "EC2" ];then\
 		EC2_SERVER_ID=$$(cat ${EC2_SERVER_FILE_ID});\
 		HOST=$$(${AWS} ${EC2} describe-instances --instance-ids $$EC2_SERVER_ID |\
 				jq -r ".Reservations[].Instances[].${EC2_IP}");\
-		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
 		SSHUSER=${EC2_SSHUSER};\
 	else\
 		SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
 		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
-		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
 		SSHUSER=${SCW_SSHUSER};\
 	fi;\
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST 'echo "export FILES_TO_PROCESS=${FILES_TO_PROCESS}" > ${APP}/artifacts';\
@@ -367,18 +364,15 @@ remote-step1:
 remote-watch:
 	@if [ "${CLOUD}" == "OS" ];then\
 		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
-		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
 		SSHUSER=${OS_SSHUSER};\
 	elif [ "${CLOUD}" == "EC2" ];then\
 		EC2_SERVER_ID=$$(cat ${EC2_SERVER_FILE_ID});\
 		HOST=$$(${AWS} ${EC2} describe-instances --instance-ids $$EC2_SERVER_ID |\
 				jq -r ".Reservations[].Instances[].${EC2_IP}");\
-		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
 		SSHUSER=${EC2_SSHUSER};\
 	else\
 		SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
 		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
-		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
 		SSHUSER=${SCW_SSHUSER};\
 	fi;\
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} watch-run;
@@ -386,18 +380,15 @@ remote-watch:
 remote-step2: remote-watch
 	@if [ "${CLOUD}" == "OS" ];then\
 		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
-		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
 		SSHUSER=${OS_SSHUSER};\
 	elif [ "${CLOUD}" == "EC2" ];then\
 		EC2_SERVER_ID=$$(cat ${EC2_SERVER_FILE_ID});\
 		HOST=$$(${AWS} ${EC2} describe-instances --instance-ids $$EC2_SERVER_ID |\
 				jq -r ".Reservations[].Instances[].${EC2_IP}");\
-		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
 		SSHUSER=${EC2_SSHUSER};\
 	else\
 		SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
 		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
-		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
 		SSHUSER=${SCW_SSHUSER};\
 	fi;\
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step2;\
