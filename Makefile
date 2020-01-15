@@ -219,13 +219,26 @@ OS-instance-order: OS-add-sshkey
 	 		echo "openstack intance ordered with success") || echo "openstance instance order failed"\
 	)
 
-OS-instance-wait: OS-instance-order
+OS-instance-wait-running: OS-instance-order
 	@timeout=${OS_TIMEOUT} ; ret=1 ; until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do\
 	  nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | (egrep '\s${APP}\s.*Running' > /dev/null) ;\
 	  ret=$$? ; \
 	  if [ "$$ret" -ne "0" ] ; then echo "waiting for openstack instance to start $$timeout" ; fi ;\
 	  ((timeout--)); sleep 1 ; \
 	done ; exit $$ret
+
+OS-instance-wait-ssh: OS-instance-wait-running
+	@HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
+		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
+		SSHUSER=${OS_SSHUSER};\
+	timeout=${OS_TIMEOUT} ; ret=1 ; until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do\
+	  ((ssh ${SSHOPTS} $$SSHUSER@$$HOST sleep 1) > /dev/null 2>&1);\
+	  ret=$$? ; \
+	  if [ "$$ret" -ne "0" ] ; then echo "waiting for ssh service on scaleway instance $$SCW_SERVER_ID - $$timeout" ; fi ;\
+	  ((timeout--)); sleep 1 ; \
+    done ; exit $$ret
+
+OS-instance-wait: OS-instance-wait-ssh
 
 OS-instance-delete:
 	nova delete ${APP}
