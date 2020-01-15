@@ -287,7 +287,7 @@ down:
 	${MAKE} -C ${GITBACKEND} backend-stop elasticsearch-stop frontend-stop
 
 clean: down
-	sudo rm -rf ${GITBACKEND} frontend ${DATA_DIR}
+	sudo rm -rf ${GITBACKEND} frontend ${DATA_DIR} s3.tag
 
 # launch all locally
 # configure
