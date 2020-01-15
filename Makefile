@@ -14,7 +14,7 @@ DATA_DIR = ${PWD}/data
 # files to sync:
 FILES_TO_SYNC=(^|\s)deces-.*.txt(.gz)?($$|\s)
 # files to process:
-FILES_TO_PROCESS=deces-[0-9]{4}(|-m\d.*).txt.gz
+FILES_TO_PROCESS=deces-[0-9]{4}.txt.gz
 DATAGOUV_CATALOG = ${DATA_DIR}/${DATAGOUV_DATASET}.datagouv.list
 S3_BUCKET = ${DATAGOUV_DATASET}
 S3_CATALOG = ${DATA_DIR}/${DATAGOUV_DATASET}.s3.list
