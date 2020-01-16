@@ -228,7 +228,7 @@ OS-instance-wait-ssh: OS-instance-wait-running
 	timeout=${OS_TIMEOUT} ; ret=1 ; until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do\
 	  ((ssh ${SSHOPTS} $$SSHUSER@$$HOST sleep 1) > /dev/null 2>&1);\
 	  ret=$$? ; \
-	  if [ "$$ret" -ne "0" ] ; then echo "waiting for ssh service on scaleway instance $$SCW_SERVER_ID - $$timeout" ; fi ;\
+	  if [ "$$ret" -ne "0" ] ; then echo "waiting for ssh service on openstack instance $$SCW_SERVER_ID - $$timeout" ; fi ;\
 	  ((timeout--)); sleep 1 ; \
     done ; exit $$ret
 
