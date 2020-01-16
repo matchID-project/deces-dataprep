@@ -42,9 +42,11 @@ config:
 	@echo checking system prerequisites
 	@${MAKE} -C ${GITBACKEND} install-prerequisites
 	@sudo apt-get install -yq jq curl
+	@echo "prerequisites installed" > config
+
+docker-post-config:
 	@${MAKE} -C ${GITBACKEND} backend-docker-pull
 	@docker pull matchid/tools
-	@echo "prerequisites installed" > config
 
 ${DATA_DIR}:
 	@if [ ! -d "${DATA_DIR}" ]; then mkdir -p ${DATA_DIR};fi
@@ -301,7 +303,7 @@ clean: down
 all-step0: ${GITBACKEND} config
 
 # first step should be 4 to 10 hours
-all-step1: up s3.tag recipe-run
+all-step1: docker-post-config up s3.tag recipe-run
 
 # second step is backup and <5 minutes
 all-step2: down backup s3-push clean
