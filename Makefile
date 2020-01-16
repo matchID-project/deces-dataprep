@@ -30,7 +30,7 @@ SCW_TIMEOUT= 180
 AWS=${PWD}/aws
 EC2_PROFILE=default
 EC2=ec2 ${EC2_ENDPOINT_OPTION} --profile ${EC2_PROFILE}
-EC2_SERVER_FILE_ID=ec2.id
+EC2_SERVER_FILE_ID=${PWD}/ec2.id
 EC2_TIMEOUT= 120
 CLOUD=SCW
 SSHOPTS=-o "StrictHostKeyChecking no" -i ${SSHKEY} ${CLOUD_SSHOPTS}
@@ -155,7 +155,7 @@ EC2-add-sshkey:
 	)
 
 ${EC2_SERVER_FILE_ID}:
-	@((${AWS} ${EC2} run-instances --key-name ${SSHKEYNAME} \
+	((${AWS} ${EC2} run-instances --key-name ${SSHKEYNAME} \
 		 	--image-id ${EC2_IMAGE_ID} --instance-type ${EC2_FLAVOR_TYPE} \
 			--tag-specifications "Tags=[{Key=Name,Value=${APP}}]" | jq -r '.Instances[0].InstanceId' > ${EC2_SERVER_FILE_ID} 2>&1 \
 		 ) &&\
