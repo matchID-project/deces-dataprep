@@ -8,8 +8,4 @@ if [ "$started" == "false" ];then \
 		-v "$HOME/.aws/:/root/.aws"\
 		matchid/tools;\
 fi
-if [ -p /dev/stdin ];then \
-	cat /dev/stdin | docker exec -i matchid-tools "$@";\
-else\
-	docker exec -i matchid-tools "$@";
-fi
+docker exec -i matchid-tools "$@";
