@@ -114,6 +114,7 @@ dev: config backend
 
 up:
 	${MAKE} -C ${GITBACKEND} elasticsearch wait-elasticsearch backend wait-backend
+	docker logs ${DC_PREFIX}-backend
 
 recipe-run:
 	${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE}
