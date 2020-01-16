@@ -8,4 +8,4 @@ if [ "$started" == "false" ];then \
 		-v "$HOME/.aws/:/root/.aws"\
 		matchid/tools;\
 fi
-docker exec -i matchid-tools "$@";
+docker exec -i matchid-tools aws "$@";
