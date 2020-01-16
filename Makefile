@@ -155,7 +155,7 @@ EC2-add-sshkey:
 	)
 
 ${EC2_SERVER_FILE_ID}:
-	((${AWS} ${EC2} run-instances --key-name ${SSHKEYNAME} \
+	@((${AWS} ${EC2} run-instances --key-name ${SSHKEYNAME} \
 		 	--image-id ${EC2_IMAGE_ID} --instance-type ${EC2_FLAVOR_TYPE} \
 			--tag-specifications "Tags=[{Key=Name,Value=${APP}}]" | jq -r '.Instances[0].InstanceId' > ${EC2_SERVER_FILE_ID} 2>&1 \
 		 ) &&\
