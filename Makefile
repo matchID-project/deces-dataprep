@@ -27,7 +27,7 @@ SSHKEYNAME = ${APP}
 OS_TIMEOUT = 60
 SCW_SERVER_FILE_ID=scw.id
 SCW_TIMEOUT= 180
-AWS=~/.local/bin/aws
+AWS=${PWD}/exec.sh aws
 EC2_PROFILE=default
 EC2=ec2 ${EC2_ENDPOINT_OPTION} --profile ${EC2_PROFILE}
 EC2_SERVER_FILE_ID=ec2.id
@@ -40,17 +40,11 @@ include ./artifacts
 
 config:
 	@echo checking system prerequisites
-	@${MAKE} -C ${GITBACKEND} install-prerequisites install-aws-cli
+	@${MAKE} -C ${GITBACKEND} install-prerequisites backend-docker-pull
+	@docker pull matchid/tools
 	@if [ ! -f "/usr/bin/curl" ]; then sudo apt-get install -y curl;fi
 	@if [ ! -f "/usr/bin/jq" ]; then sudo apt-get install -y jq;fi
 	@echo "prerequisites installed" > config
-
-install-aws-cli:
-ifeq ("$(wildcard ${AWS})","")
-	sudo apt-get update; true
-	sudo apt install -y python-pip; true
-	pip install aws awscli_plugin_endpoint ; true
-endif
 
 ${DATA_DIR}:
 	@if [ ! -d "${DATA_DIR}" ]; then mkdir -p ${DATA_DIR};fi
@@ -149,7 +143,7 @@ ${SSHKEY}:
 	@echo ssh keygen
 	@ssh-keygen -t rsa -b 4096 -C "${SSHID}" -f ${SSHKEY_PRIVATE} -q -N "${SSH_PASSPHRASE}"
 
-EC2-add-sshkey: install-aws-cli
+EC2-add-sshkey:
 	@(\
 		((${AWS} ${EC2} describe-key-pairs --key-name ${SSHKEYNAME}  > /dev/null 2>&1) &&\
 			echo "ssh key already deployed to EC2") \
