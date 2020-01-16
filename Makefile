@@ -40,10 +40,10 @@ include ./artifacts
 
 config:
 	@echo checking system prerequisites
-	@${MAKE} -C ${GITBACKEND} install-prerequisites backend-docker-pull
+	@${MAKE} -C ${GITBACKEND} install-prerequisites
+	@sudo apt-get install -yq jq curl
+	@${MAKE} -C ${GITBACKEND} backend-docker-pull
 	@docker pull matchid/tools
-	@if [ ! -f "/usr/bin/curl" ]; then sudo apt-get install -y curl;fi
-	@if [ ! -f "/usr/bin/jq" ]; then sudo apt-get install -y jq;fi
 	@echo "prerequisites installed" > config
 
 ${DATA_DIR}:
