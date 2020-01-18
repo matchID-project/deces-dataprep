@@ -132,7 +132,7 @@ watch-run:
 	@find ${GITBACKEND}/log/ -iname '*dataprep_personnes-dedecees_search*' | sort | tail -1 | xargs tail
 
 s3.tag:
-	@${AWS} s3 ls ${S3_BUCKET} | egrep '${FILES_TO_PROCESS}' | awk '{print $$NF}' | sort | sha1sum | awk '{print $1}' | cut -c-8 > s3.tag
+	@${AWS} s3 ls ${S3_BUCKET} | egrep '${FILES_TO_PROCESS}' | awk '{print $$NF}' | sort | sed 's/\s*$$//'| sha1sum | awk '{print $1}' | cut -c-8 > s3.tag
 
 backup: s3.tag
 	echo "export ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar" >> ${GITBACKEND}/artifacts
