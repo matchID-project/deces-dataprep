@@ -125,7 +125,7 @@ recipe-run:
 watch-run:
 	@timeout=${TIMEOUT} ; ret=1 ; \
 		until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do \
-			f=$$(find ${GITBACKEND}/log/ -iname '*dataprep_personnes-dedecees_search*' | sort | tail -1);\
+			f=$$(find ${GITBACKEND}/log/ -iname '*${RECIPE}*' | sort | tail -1);\
 		((tail $$f | grep "end of all" > /dev/null) || exit 1) ; \
 		ret=$$? ; \
 		if [ "$$ret" -ne "0" ] ; then \
