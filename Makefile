@@ -1,6 +1,6 @@
 SHELL=/bin/bash
 
-APP=deces_dataprep
+APP=deces-dataprep
 PWD := $(shell pwd)
 GIT = $(shell which git)
 GITROOT = https://github.com/matchid-project
