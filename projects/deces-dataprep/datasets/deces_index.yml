@@ -48,9 +48,13 @@ datasets:
               max_chars: 4
           COMMUNE_NAISSANCE:
             type: keyword
+          DEPARTEMENT_NAISSANCE:
+            type: keyword
           PAYS_NAISSANCE:
             type: keyword
           COMMUNE_DECES:
             type: keyword            
+          DEPARTEMENT_DECES:
+            type: keyword
           PAYS_DECES:
             type: keyword
