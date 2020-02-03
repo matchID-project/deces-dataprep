@@ -38,7 +38,7 @@ SSHOPTS=-o "StrictHostKeyChecking no" -i ${SSHKEY} ${CLOUD_SSHOPTS}
 dummy               := $(shell touch artifacts)
 include ./artifacts
 
-config:
+config: ${GITBACKEND}
 	@echo checking system prerequisites
 	@${MAKE} -C ${GITBACKEND} install-prerequisites
 	@sudo apt-get install -yq jq curl
@@ -110,7 +110,7 @@ ${GITBACKEND}:
 	@echo "export PROJECTS=${PWD}/projects" >> ${GITBACKEND}/artifacts
 	@echo "export S3_BUCKET=${S3_BUCKET}" >> ${GITBACKEND}/artifacts
 
-dev: config backend
+dev: config docker-post-config
 	${MAKE} -C ${GITBACKEND} frontend-build backend elasticsearch frontend
 
 dev-stop:
