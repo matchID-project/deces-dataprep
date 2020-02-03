@@ -1,7 +1,7 @@
 datasets:
-  personnes-decedees_csv:
+  deces_csv:
     connector: s3
-    table: personnes-decedees.csv.gz
+    table: deces.csv.gz
     type: csv
     sep: ";"
     encoding: "utf8"

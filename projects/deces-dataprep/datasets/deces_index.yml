@@ -1,5 +1,5 @@
 datasets:
-  personnes-decedees_index:
+  deces_index:
     connector: elasticsearch
     table: deces 
     #chunk: 500

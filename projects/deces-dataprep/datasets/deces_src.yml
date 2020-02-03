@@ -1,5 +1,5 @@
 datasets:
-  personnes-decedees_src:
+  deces_src:
     # death people reference (fake - test sample)
     # fixed with format with no header
     connector: s3
@@ -7,16 +7,7 @@ datasets:
       regex: !ENV ${FILES_TO_PROCESS}
     compression: gzip
     type: fwf
-    widths:
-      - 80
-      - 1
-      - 8
-      - 5
-      - 30
-      - 30
-      - 8
-      - 5
-      - 10
+    widths: [80, 1, 8, 5, 30, 30, 8, 5, 10]
     names:
       - NOM_PRENOMS
       - SEXE

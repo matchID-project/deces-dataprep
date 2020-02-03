@@ -1,5 +1,5 @@
 recipes:
-  dataprep_personnes-dedecees_search:
+  deces_dataprep:
     test_chunk_size: 100
     write_queue_length: 1
     input: 
