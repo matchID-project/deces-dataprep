@@ -42,6 +42,7 @@ config:
 	@echo checking system prerequisites
 	@${MAKE} -C ${GITBACKEND} install-prerequisites
 	@sudo apt-get install -yq jq curl
+	@${MAKE} -C ${GITBACKEND} register-secrets
 	@echo "prerequisites installed" > config
 
 docker-post-config:
