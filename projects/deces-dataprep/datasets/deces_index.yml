@@ -42,7 +42,10 @@ datasets:
           PRENOMS:
             type: text
           DATE_NAISSANCE:
-            type: keyword              
+            type: text
+            index_prefixes:
+              min_chars: 4
+              max_chars: 4
           COMMUNE_NAISSANCE:
             type: keyword
           PAYS_NAISSANCE:
