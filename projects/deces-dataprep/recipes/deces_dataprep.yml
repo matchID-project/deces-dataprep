@@ -2,9 +2,8 @@ recipes:
   deces_dataprep:
     test_chunk_size: 100
     write_queue_length: 1
-    input: 
-      personnes-decedees_src
-    output: personnes-decedees_index
+    input: deces_src
+    output: deces_index
     threads: 4
     steps:
       - exec:
