@@ -113,6 +113,9 @@ ${GITBACKEND}:
 dev: config backend
 	${MAKE} -C ${GITBACKEND} frontend-build backend elasticsearch frontend
 
+dev-stop:
+	${MAKE} -C ${GITBACKEND} frontend-stop backend-stop elasticsearch-stop
+
 up:
 	${MAKE} -C ${GITBACKEND} elasticsearch wait-elasticsearch backend wait-backend
 
