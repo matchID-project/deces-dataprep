@@ -52,6 +52,11 @@ datasets:
             type: keyword
           PAYS_NAISSANCE:
             type: keyword
+          DATE_DECES:
+            type: text
+            index_prefixes:
+              min_chars: 4
+              max_chars: 4
           COMMUNE_DECES:
             type: keyword            
           DEPARTEMENT_DECES:
