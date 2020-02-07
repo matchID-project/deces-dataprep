@@ -11,10 +11,12 @@ TIMEOUT = 2520
 DATAGOUV_API = https://www.data.gouv.fr/api/1/datasets
 DATAGOUV_DATASET = fichier-des-personnes-decedees
 DATA_DIR = ${PWD}/data
+BACKUP_DIR = ${PWD}/${GITBACKEND}/backup
 # files to sync:
 FILES_TO_SYNC=(^|\s)deces-.*.txt(.gz)?($$|\s)
 # files to process:
 FILES_TO_PROCESS=deces-[0-9]{4}.txt.gz
+FILES_TO_PROCESS_DIFF=deces-2020-m[0-9]{2}.txt.gz
 DATAGOUV_CATALOG = ${DATA_DIR}/${DATAGOUV_DATASET}.datagouv.list
 S3_BUCKET = ${DATAGOUV_DATASET}
 S3_CATALOG = ${DATA_DIR}/${DATAGOUV_DATASET}.s3.list
@@ -60,8 +62,8 @@ ${DATAGOUV_CATALOG}: config ${DATA_DIR}
 datagouv-get-catalog: ${DATAGOUV_CATALOG}
 
 datagouv-get-files: ${DATAGOUV_CATALOG}
-	@if [ -f "${S3_CATALOG}" ]; then\
-		(echo egrep -v $$(cat ${S3_CATALOG} | tr '\n' '|' | sed 's/.gz//g;s/^/"(/;s/|$$/)"/') ${DATAGOUV_CATALOG} | sh > ${DATA_DIR}/tmp.list) || true;\
+	@if [ -s "${S3_CATALOG}" ]; then\
+		(echo egrep -v $$(cat ${S3_CATALOG} | sed 's/\r//g' | tr '\n' '|' | sed 's/.gz//g;s/^/"(/;s/|$$/)"/') ${DATAGOUV_CATALOG} | sh > ${DATA_DIR}/tmp.list) || true;\
 	else\
 		cp ${DATAGOUV_CATALOG} ${DATA_DIR}/tmp.list;\
 	fi
@@ -119,8 +121,17 @@ dev-stop:
 up:
 	${MAKE} -C ${GITBACKEND} elasticsearch wait-elasticsearch backend wait-backend
 
-recipe-run:
-	${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE}
+recipe-run: s3.tag s3-backup-list
+	@if [ -s s3-backup-list ]; then\
+		echo recipe has already been runned;\
+	else\
+		${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE};\
+		echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > elasticsearch-restore;\
+	fi;
+	@touch run-recipe
+
+recipe-run-diff: elasticsearch-restore
+	${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE} FILES_TO_PROCESS=${FILES_TO_PROCESS_DIFF}
 
 watch-run:
 	@timeout=${TIMEOUT} ; ret=1 ; \
@@ -138,11 +149,34 @@ watch-run:
 s3.tag:
 	@${AWS} s3 ls ${S3_BUCKET} | egrep '${FILES_TO_PROCESS}' | awk '{print $$NF}' | sort | sed 's/\s*$$//'| sha1sum | awk '{print $1}' | cut -c-8 > s3.tag
 
-backup: s3.tag
-	echo "export ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar" >> ${GITBACKEND}/artifacts
-	${MAKE} -C ${GITBACKEND} elasticsearch-backup
+s3-diff.tag:
+	@${AWS} s3 ls ${S3_BUCKET} | egrep '${FILES_TO_PROCESS_DIFF}' | awk '{print $$NF}' | sort | sed 's/\s*$$//'| sha1sum | awk '{print $1}' | cut -c-8 > s3-diff.tag
 
-s3-push:
+s3-backup-list: s3.tag
+	@(${AWS} s3 ls ${S3_BUCKET} | awk '{print $$NF}' | grep esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > /dev/null)\
+		&& (echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > s3-backup-list)\
+		|| touch s3-backup-list
+
+s3-pull: recipe-run
+	@ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar;\
+		if [ ! -f "$$ES_BACKUP_FILE" ];then\
+				echo pulling s3://${S3_BUCKET}/$$ES_BACKUP_FILE;\
+				${AWS} s3 cp s3://${S3_BUCKET}/$$ES_BACKUP_FILE ${BACKUP_DIR}/$$ES_BACKUP_FILE;\
+		fi;
+
+elasticsearch-restore: s3-pull
+	${MAKE} -C ${GITBACKEND} elasticsearch-restore ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar
+
+backup-dir:
+	mkdir -p ${BACKUP_DIR}
+
+backup: s3.tag
+	${MAKE} -C ${GITBACKEND} elasticsearch-backup ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar
+
+backup-diff: s3-diff.tag
+	${MAKE} -C ${GITBACKEND} elasticsearch-backup ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).tar
+
+s3-push: s3.tag backup
 	${MAKE} -C ${GITBACKEND} elasticsearch-s3-push S3_BUCKET=fichier-des-personnes-decedees
 
 ${SSHKEY}:
