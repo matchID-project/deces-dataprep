@@ -425,7 +425,7 @@ remote-config: ${CLOUD}-instance-wait
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST git clone ${GITROOT}/${APP};\
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST sudo apt-get update -y;\
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST sudo apt-get install -y make;\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step0;
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step0 ${MAKEOVERRIDES};
 
 remote-step1:
 	@if [ "${CLOUD}" == "OS" ];then\
@@ -446,7 +446,7 @@ remote-step1:
 		cat ${S3_CONFIG} | ${REMOTE_HOST} ssh ${SSHOPTS} $$SSHUSER@$$HOST "cat > .aws/config";\
 		echo -e "[default]\naws_access_key_id=${aws_access_key_id}\naws_secret_access_key=${aws_secret_access_key}\n" |\
 			ssh ${SSHOPTS} $$SSHUSER@$$HOST 'cat > .aws/credentials';\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step1 aws_access_key_id=${aws_access_key_id} aws_secret_access_key=${aws_secret_access_key};
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step1 aws_access_key_id=${aws_access_key_id} aws_secret_access_key=${aws_secret_access_key} ${MAKEOVERRIDES};
 
 remote-watch:
 	@if [ "${CLOUD}" == "OS" ];then\
@@ -462,7 +462,7 @@ remote-watch:
 		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
 		SSHUSER=${SCW_SSHUSER};\
 	fi;\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} watch-run;
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} watch-run ${MAKEOVERRIDES};
 
 remote-step2: remote-watch
 	@if [ "${CLOUD}" == "OS" ];then\
@@ -478,7 +478,7 @@ remote-step2: remote-watch
 		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
 		SSHUSER=${SCW_SSHUSER};\
 	fi;\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step2 aws_access_key_id=${aws_access_key_id} aws_secret_access_key=${aws_secret_access_key};\
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step2 aws_access_key_id=${aws_access_key_id} aws_secret_access_key=${aws_secret_access_key} ${MAKEOVERRIDES};\
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST rm .aws/credentials;
 
 remote-clean: ${CLOUD}-instance-delete
