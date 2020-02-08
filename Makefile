@@ -126,7 +126,7 @@ up:
 
 recipe-run: s3.tag up
 	@echo running recipe on full data
-	@${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE} &&\
+	@${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} &&\
 		touch recipe-run &&\
 		(echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > elasticsearch-restore)
 
@@ -142,7 +142,7 @@ full: full-check recipe-run
 recipe-run-diff: up
 	@echo running recipe on diff
 	@rm -f elasticsearch-restore
-	@${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE} FILES_TO_PROCESS=${FILES_TO_PROCESS_DIFF}\
+	@${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} FILES_TO_PROCESS=${FILES_TO_PROCESS_DIFF}\
 		&& touch recipe-run-diff
 
 diff-check: datagouv-to-s3 s3-backup-list-diff
