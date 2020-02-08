@@ -127,16 +127,16 @@ up:
 recipe-run: s3.tag up
 	@echo running recipe on full data
 	@${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE} &&\
-		touch run-recipe &&\
+		touch recipe-run &&\
 		(echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > elasticsearch-restore)
 
 full-check: datagouv-to-s3 s3-backup-list
 	@if [ -s s3-backup-list ]; then\
 		echo recipe has already been runned on full and saved on s3;\
-		touch run-recipe watch-run backup s3-push;\
+		touch recipe-run watch-run backup s3-push;\
 	fi
 
-full: full-check run-recipe
+full: full-check recipe-run
 	@touch full
 
 recipe-run-diff: up
@@ -387,7 +387,7 @@ down:
 
 clean: down
 	sudo rm -rf ${GITBACKEND} frontend ${DATA_DIR} s3.tag config \
-		run-recipe run-recipe-diff diff s3-backup-list elasticsearch-restore watch-run full diff
+		recipe-run recipe-run-diff diff s3-backup-list elasticsearch-restore watch-run full diff
 
 # launch all locally
 # configure
