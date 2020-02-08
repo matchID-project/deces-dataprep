@@ -478,7 +478,7 @@ remote-step2: remote-watch
 		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
 		SSHUSER=${SCW_SSHUSER};\
 	fi;\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step2;\
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step2 aws_access_key_id=${aws_access_key_id} aws_secret_access_key=${aws_secret_access_key};\
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST rm .aws/credentials;
 
 remote-clean: ${CLOUD}-instance-delete
