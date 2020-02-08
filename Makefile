@@ -102,6 +102,7 @@ datagouv-to-s3: s3-get-catalog datagouv-get-files
 		${AWS} s3 cp ${DATA_DIR}/$$file s3://${S3_BUCKET}/$$file;\
 		${AWS} s3api put-object-acl --acl public-read --bucket ${S3_BUCKET} --key $$file && echo $$file acl set to public;\
 	done
+	@touch datagouv-to-s3
 
 ${GITBACKEND}:
 	@echo configuring matchID
@@ -121,17 +122,38 @@ dev-stop:
 up:
 	${MAKE} -C ${GITBACKEND} elasticsearch wait-elasticsearch backend wait-backend
 
-recipe-run: s3.tag s3-backup-list
-	@if [ -s s3-backup-list ]; then\
-		echo recipe has already been runned;\
-	else\
-		${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE};\
-		echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > elasticsearch-restore;\
-	fi;
-	@touch run-recipe
+recipe-run: s3.tag up
+	@echo running recipe on full data
+	@${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE} &&\
+		touch run-recipe &&\
+		(echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > elasticsearch-restore)
 
-recipe-run-diff: elasticsearch-restore
-	${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE} FILES_TO_PROCESS=${FILES_TO_PROCESS_DIFF}
+full-check: datagouv-to-s3 s3-backup-list
+	@if [ -s s3-backup-list ]; then\
+		echo recipe has already been runned on full and saved on s3;\
+		touch run-recipe watch-run backup s3-push;\
+	fi
+
+full: full-check run-recipe
+	@touch full
+
+recipe-run-diff: up
+	@echo running recipe on diff
+	@rm -f elasticsearch-restore
+	@${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE} FILES_TO_PROCESS=${FILES_TO_PROCESS_DIFF}\
+		&& touch recipe-run-diff
+
+diff-check: datagouv-to-s3 s3-backup-list-diff
+	@if [ -s s3-backup-list-diff ]; then\
+		echo diff recipe has already been runned and saved on s3;\
+		touch elasticsearch-restore full recipe-run-diff;\
+	fi;
+
+diff: diff-check elasticsearch-restore recipe-run-diff
+	@touch diff
+
+backend-clean-logs:
+	rm -f ${GITBACKEND}/log/*log watch-run
 
 watch-run:
 	@timeout=${TIMEOUT} ; ret=1 ; \
@@ -155,29 +177,57 @@ s3-diff.tag:
 s3-backup-list: s3.tag
 	@(${AWS} s3 ls ${S3_BUCKET} | awk '{print $$NF}' | grep esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > /dev/null)\
 		&& (echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > s3-backup-list)\
-		|| touch s3-backup-list
+		|| touch s3-backup-list backup s3-push
 
-s3-pull: recipe-run
+s3-backup-list-diff: s3.tag s3-diff.tag
+	@(${AWS} s3 ls ${S3_BUCKET} | awk '{print $$NF}' | grep esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).tar > /dev/null)\
+		&& (echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).tar > s3-backup-list-diff)\
+		|| touch s3-backup-list-diff backup-diff s3-push-diff
+
+s3-pull:
 	@ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar;\
-		if [ ! -f "$$ES_BACKUP_FILE" ];then\
+	ES_BACKUP_FILE_SNAR=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).snar;\
+		if [ ! -f "${BACKUP_DIR}/$$ES_BACKUP_FILE" ];then\
 				echo pulling s3://${S3_BUCKET}/$$ES_BACKUP_FILE;\
 				${AWS} s3 cp s3://${S3_BUCKET}/$$ES_BACKUP_FILE ${BACKUP_DIR}/$$ES_BACKUP_FILE;\
+				${AWS} s3 cp s3://${S3_BUCKET}/$$ES_BACKUP_FILE_SNAR ${BACKUP_DIR}/$$ES_BACKUP_FILE_SNAR;\
 		fi;
 
 elasticsearch-restore: s3-pull
 	${MAKE} -C ${GITBACKEND} elasticsearch-restore ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar
+	echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > elasticsearch-restore
 
 backup-dir:
 	mkdir -p ${BACKUP_DIR}
 
 backup: s3.tag
-	${MAKE} -C ${GITBACKEND} elasticsearch-backup ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar
+	@ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar;\
+	ES_BACKUP_FILE_SNAR=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).snar;\
+	if [ ! -f "${BACKUP_DIR}/$$ES_BACKUP_FILE" ];then\
+		${MAKE} -C ${GITBACKEND} elasticsearch-backup \
+			ES_BACKUP_FILE=$$ES_BACKUP_FILE\
+			ES_BACKUP_FILE_SNAR=$$ES_BACKUP_FILE_SNAR;\
+	fi;\
+	touch backup
 
 backup-diff: s3-diff.tag
-	${MAKE} -C ${GITBACKEND} elasticsearch-backup ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).tar
+	@ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).tar;\
+	ES_BACKUP_FILE_SNAR=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).snar;\
+	ES_BACKUP_FILE_SNAR_NEW=esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).snar;\
+	if [ ! -f "${BACKUP_DIR}/$$ES_BACKUP_FILE" ];then\
+		${MAKE} -C ${GITBACKEND} elasticsearch-backup \
+			ES_BACKUP_FILE=$$ES_BACKUP_FILE\
+			ES_BACKUP_FILE_SNAR=$$ES_BACKUP_FILE_SNAR;\
+		cp ${BACKUP_DIR}/$$ES_BACKUP_FILE_SNAR ${BACKUP_DIR}/$$ES_BACKUP_FILE_SNAR_NEW;\
+	fi;\
+	touch backup-diff
 
 s3-push: s3.tag backup
-	${MAKE} -C ${GITBACKEND} elasticsearch-s3-push S3_BUCKET=fichier-des-personnes-decedees
+	${MAKE} -C ${GITBACKEND} elasticsearch-s3-push S3_BUCKET=fichier-des-personnes-decedees ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar ES_BACKUP_FILE_SNAR=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).snar
+
+s3-push-diff: s3.tag backup-diff
+	${MAKE} -C ${GITBACKEND} elasticsearch-s3-push S3_BUCKET=fichier-des-personnes-decedees ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).tar ES_BACKUP_FILE_SNAR=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).snar
+
 
 ${SSHKEY}:
 	@echo ssh keygen
@@ -331,20 +381,21 @@ SCW-instance-delete:
 	fi
 
 down:
-	${MAKE} -C ${GITBACKEND} backend-stop elasticsearch-stop frontend-stop
+	${MAKE} -C ${GITBACKEND} backend-stop elasticsearch-stop frontend-stop || true
 
 clean: down
-	sudo rm -rf ${GITBACKEND} frontend ${DATA_DIR} s3.tag config
+	sudo rm -rf ${GITBACKEND} frontend ${DATA_DIR} s3.tag config \
+		run-recipe run-recipe-diff diff s3-backup-list elasticsearch-restore watch-run full diff
 
 # launch all locally
 # configure
 all-step0: ${GITBACKEND} config
 
-# first step should be 4 to 10 hours
-all-step1: docker-post-config up s3.tag recipe-run
+# first step should be 4 to 10 hours if not already runned (can't be travis-ed)
+all-step1: docker-post-config full
 
-# second step is backup and <5 minutes
-all-step2: down backup s3-push clean
+# second step is backup, diff run and <5 minutes (can be travis-ed
+all-step2: s3-push backend-clean-logs diff watch-run s3-push-diff
 
 all: config all-step1 watch-run all-step2
 	@echo ended with succes !!!
