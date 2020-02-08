@@ -7,6 +7,8 @@ GITROOT = https://github.com/matchid-project
 GITBACKEND = backend
 MAKE = $(shell which make)
 RECIPE = deces_dataprep
+RECIPE_THREADS = 4
+RECIPE_QUEUE = 1
 TIMEOUT = 2520
 DATAGOUV_API = https://www.data.gouv.fr/api/1/datasets
 DATAGOUV_DATASET = fichier-des-personnes-decedees
@@ -482,3 +484,4 @@ remote-step2: remote-watch
 remote-clean: ${CLOUD}-instance-delete
 
 remote-all: remote-config remote-step1 remote-watch remote-step2 remote-clean
+

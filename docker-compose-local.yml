@@ -5,3 +5,5 @@ services:
     environment:
       - S3_BUCKET
       - FILES_TO_PROCESS
+      - RECIPE_THREADS
+      - RECIPE_QUEUE

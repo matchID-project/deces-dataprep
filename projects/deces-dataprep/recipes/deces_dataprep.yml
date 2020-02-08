@@ -1,10 +1,10 @@
 recipes:
   deces_dataprep:
     test_chunk_size: 100
-    write_queue_length: 3
+    write_queue_length: !ENV ${RECIPE_QUEUE}
     input: deces_src
     output: deces_index
-    threads: 6
+    threads: !ENV ${RECIPE_THREADS}
     steps:
       - exec:
         #tag dataset and records with uniq id
