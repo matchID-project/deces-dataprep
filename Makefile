@@ -146,7 +146,7 @@ recipe-run-diff: s3-diff.tag
 	@if [ ! -f "recipe-run-diff" ];then\
 		${MAKE} up;\
 		echo running recipe on diff;\
-		rm -f elasticsearch-restore;\
+		rm -f elasticsearch-restore watch-run;\
 		${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} FILES_TO_PROCESS=${FILES_TO_PROCESS_DIFF}\
 			&& touch recipe-run-diff;\
 	fi
@@ -158,24 +158,57 @@ diff-check: datagouv-to-s3 s3-backup-list-diff
 			s3-pull recipe-run-diff watch-run backup-diff s3-push-diff;\
 	fi;
 
+wait-recipe-diff-up:
+	@timeout=10 ; ret=1 ; \
+	until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do \
+		f=$$(find ${GITBACKEND}/log/ -iname '*${RECIPE}*' | sort | tail -1);\
+		if [ -z "$$f" ] ; then \
+			echo "waiting for start of job $$timeout" ; \
+			sleep 1 ;\
+		else\
+			ret=0;\
+		fi ; ((timeout--)); done ; exit $$ret;
+	@echo "recipe properly launched"
+
 diff: diff-check elasticsearch-restore recipe-run-diff
 	@touch diff
 
 backend-clean-logs:
-	rm -f ${GITBACKEND}/log/*log watch-run
+	rm -f ${PWD}/${GITBACKEND}/log/*${RECIPE}*log
+
+ls:
+	@echo iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+	@ls | grep watch-run || true
+	@echo yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
 
 watch-run:
 	@timeout=${TIMEOUT} ; ret=1 ; \
 		until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do \
 			f=$$(find ${GITBACKEND}/log/ -iname '*${RECIPE}*' | sort | tail -1);\
-		((tail $$f | grep "end of all" > /dev/null) || exit 1) ; \
-		ret=$$? ; \
-		if [ "$$ret" -ne "0" ] ; then \
-			echo "waiting for end of job $$timeout" ; \
-			grep wrote $$f |awk 'BEGIN{s=0}{t=$$4;s+=$$12}END{print t " wrote " s}' ;\
-			sleep 10 ;\
-		fi ; ((timeout--)); done ; exit $$ret
+			((tail $$f | grep "end of all" > /dev/null) || exit 1) ; \
+			ret=$$? ; \
+			if [ "$$ret" -ne "0" ] ; then \
+				echo "waiting for end of job $$timeout" ; \
+				grep wrote $$f |awk 'BEGIN{s=0}{t=$$4;s+=$$12}END{print t " wrote " s}' ;\
+				sleep 10 ;\
+			fi ; ((timeout--)); done ; exit $$ret
 	@find ${GITBACKEND}/log/ -iname '*dataprep_personnes-dedecees_search*' | sort | tail -1 | xargs tail
+
+watch-run-diff:
+	@if [ ! -s s3-backup-list ];then\
+		timeout=${TIMEOUT} ; ret=1 ; \
+			until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do \
+				f=$$(find ${GITBACKEND}/log/ -iname '*${RECIPE}*' | sort | tail -1);\
+				((tail $$f | grep "end of all" > /dev/null) || exit 1) ; \
+				ret=$$? ; \
+				if [ "$$ret" -ne "0" ] ; then \
+					echo "waiting for end of job $$timeout" ; \
+					grep wrote $$f |awk 'BEGIN{s=0}{t=$$4;s+=$$12}END{print t " wrote " s}' ;\
+					sleep 10 ;\
+				fi ; ((timeout--)); done ; exit $$ret;\
+		(find ${GITBACKEND}/log/ -iname '*dataprep_personnes-dedecees_search*' | sort | tail -1 | xargs tail);\
+	fi
+
 
 s3.tag:
 	@${AWS} s3 ls ${S3_BUCKET} | egrep '${FILES_TO_PROCESS}' | awk '{print $$NF}' | sort | sed 's/\s*$$//'| sha1sum | awk '{print $1}' | cut -c-8 > s3.tag
@@ -409,7 +442,7 @@ all-step0: ${GITBACKEND} config
 all-step1: docker-post-config full
 
 # second step is backup, diff run and <5 minutes (can be travis-ed
-all-step2: s3-push backend-clean-logs diff watch-run s3-push-diff
+all-step2: s3-push backend-clean-logs diff watch-run-diff s3-push-diff
 
 all: all-step0 all-step1 watch-run all-step2
 	@echo ended with succes !!!
