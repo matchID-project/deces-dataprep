@@ -393,7 +393,8 @@ down:
 
 clean: down
 	sudo rm -rf ${GITBACKEND} frontend ${DATA_DIR} s3.tag config \
-		recipe-run recipe-run-diff s3-backup-list s3-backup-list-diff elasticsearch-restore watch-run full diff
+		recipe-run recipe-run-diff s3-backup-list s3-backup-list-diff elasticsearch-restore watch-run full diff\
+		backup backup-diff
 
 # launch all locally
 # configure
