@@ -239,7 +239,7 @@ s3-push: s3.tag backup
 	${MAKE} -C ${GITBACKEND} elasticsearch-s3-push S3_BUCKET=fichier-des-personnes-decedees ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar ES_BACKUP_FILE_SNAR=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).snar
 
 s3-push-diff: s3.tag backup-diff
-	${MAKE} -C ${GITBACKEND} elasticsearch-s3-push S3_BUCKET=fichier-des-personnes-decedees ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).tar ES_BACKUP_FILE_SNAR=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).snar
+	${MAKE} -C ${GITBACKEND} elasticsearch-s3-push S3_BUCKET=fichier-des-personnes-decedees ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).tar ES_BACKUP_FILE_SNAR=esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).snar
 
 
 ${SSHKEY}:
