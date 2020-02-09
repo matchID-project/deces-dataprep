@@ -124,11 +124,14 @@ dev-stop:
 up:
 	${MAKE} -C ${GITBACKEND} elasticsearch wait-elasticsearch backend wait-backend
 
-recipe-run: s3.tag up
-	@echo running recipe on full data
-	@${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} &&\
-		touch recipe-run &&\
-		(echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > elasticsearch-restore)
+recipe-run: s3.tag
+	@if [ ! -f "recipe-run" ];then\
+		${MAKE} up;\
+		echo running recipe on full data;\
+		${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} &&\
+			touch recipe-run &&\
+			(echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > elasticsearch-restore);\
+	fi
 
 full-check: datagouv-to-s3 s3-backup-list
 	@if [ -s s3-backup-list ]; then\
@@ -139,16 +142,19 @@ full-check: datagouv-to-s3 s3-backup-list
 full: full-check recipe-run
 	@touch full
 
-recipe-run-diff: up
-	@echo running recipe on diff
-	@rm -f elasticsearch-restore
-	@${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} FILES_TO_PROCESS=${FILES_TO_PROCESS_DIFF}\
-		&& touch recipe-run-diff
+recipe-run-diff: s3-diff.tag
+	@if [ ! -f "recipe-run-diff" ];then\
+		${MAKE} up;\
+		echo running recipe on diff;\
+		rm -f elasticsearch-restore;\
+		${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} FILES_TO_PROCESS=${FILES_TO_PROCESS_DIFF}\
+			&& touch recipe-run-diff;\
+	fi
 
 diff-check: datagouv-to-s3 s3-backup-list-diff
 	@if [ -s s3-backup-list-diff ]; then\
 		echo diff recipe has already been runned and saved on s3;\
-		touch elasticsearch-restore full recipe-run-diff;\
+		touch elasticsearch-restore full recipe-run-diff watch-run backup-diff s3-push-diff;\
 	fi;
 
 diff: diff-check elasticsearch-restore recipe-run-diff
@@ -178,13 +184,13 @@ s3-diff.tag:
 
 s3-backup-list: s3.tag
 	@(${AWS} s3 ls ${S3_BUCKET} | awk '{print $$NF}' | grep esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > /dev/null)\
-		&& (echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > s3-backup-list)\
-		|| touch s3-backup-list backup s3-push
+		&& ((echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > s3-backup-list) && touch backup s3-push)\
+		|| touch s3-backup-list
 
 s3-backup-list-diff: s3.tag s3-diff.tag
 	@(${AWS} s3 ls ${S3_BUCKET} | awk '{print $$NF}' | grep esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).tar > /dev/null)\
-		&& (echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).tar > s3-backup-list-diff)\
-		|| touch s3-backup-list-diff backup-diff s3-push-diff
+		&& ((echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).tar > s3-backup-list-diff) && touch backup-diff s3-push-diff)\
+		|| touch s3-backup-list-diff
 
 s3-pull:
 	@ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar;\
@@ -196,8 +202,8 @@ s3-pull:
 		fi;
 
 elasticsearch-restore: s3-pull
-	${MAKE} -C ${GITBACKEND} elasticsearch-restore ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar
-	echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > elasticsearch-restore
+	@${MAKE} -C ${GITBACKEND} elasticsearch-restore ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar \
+		&& (echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > elasticsearch-restore)
 
 backup-dir:
 	mkdir -p ${BACKUP_DIR}
@@ -220,7 +226,7 @@ backup-diff: s3-diff.tag
 		${MAKE} -C ${GITBACKEND} elasticsearch-backup \
 			ES_BACKUP_FILE=$$ES_BACKUP_FILE\
 			ES_BACKUP_FILE_SNAR=$$ES_BACKUP_FILE_SNAR;\
-		cp ${BACKUP_DIR}/$$ES_BACKUP_FILE_SNAR ${BACKUP_DIR}/$$ES_BACKUP_FILE_SNAR_NEW;\
+		sudo cp ${BACKUP_DIR}/$$ES_BACKUP_FILE_SNAR ${BACKUP_DIR}/$$ES_BACKUP_FILE_SNAR_NEW;\
 	fi;\
 	touch backup-diff
 
@@ -387,7 +393,7 @@ down:
 
 clean: down
 	sudo rm -rf ${GITBACKEND} frontend ${DATA_DIR} s3.tag config \
-		recipe-run recipe-run-diff diff s3-backup-list elasticsearch-restore watch-run full diff
+		recipe-run recipe-run-diff s3-backup-list s3-backup-list-diff elasticsearch-restore watch-run full diff
 
 # launch all locally
 # configure
@@ -399,7 +405,7 @@ all-step1: docker-post-config full
 # second step is backup, diff run and <5 minutes (can be travis-ed
 all-step2: s3-push backend-clean-logs diff watch-run s3-push-diff
 
-all: config all-step1 watch-run all-step2
+all: all-step0 all-step1 watch-run all-step2
 	@echo ended with succes !!!
 
 # launch remote
