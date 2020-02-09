@@ -139,7 +139,7 @@ full-check: datagouv-to-s3 s3-backup-list
 		touch recipe-run watch-run backup s3-push;\
 	fi
 
-full: full-check recipe-run
+full: diff-check full-check recipe-run
 	@touch full
 
 recipe-run-diff: s3-diff.tag
@@ -154,7 +154,8 @@ recipe-run-diff: s3-diff.tag
 diff-check: datagouv-to-s3 s3-backup-list-diff
 	@if [ -s s3-backup-list-diff ]; then\
 		echo diff recipe has already been runned and saved on s3;\
-		touch elasticsearch-restore full recipe-run-diff watch-run backup-diff s3-push-diff;\
+		touch elasticsearch-restore full recipe-run backup s3-push \
+			s3-pull recipe-run-diff watch-run backup-diff s3-push-diff;\
 	fi;
 
 diff: diff-check elasticsearch-restore recipe-run-diff
@@ -193,17 +194,21 @@ s3-backup-list-diff: s3.tag s3-diff.tag
 		|| touch s3-backup-list-diff
 
 s3-pull:
-	@ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar;\
-	ES_BACKUP_FILE_SNAR=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).snar;\
+	@if [ ! -f "s3-pull" ];then\
+		ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar;\
+		ES_BACKUP_FILE_SNAR=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).snar;\
 		if [ ! -f "${BACKUP_DIR}/$$ES_BACKUP_FILE" ];then\
 				echo pulling s3://${S3_BUCKET}/$$ES_BACKUP_FILE;\
 				${AWS} s3 cp s3://${S3_BUCKET}/$$ES_BACKUP_FILE ${BACKUP_DIR}/$$ES_BACKUP_FILE;\
 				${AWS} s3 cp s3://${S3_BUCKET}/$$ES_BACKUP_FILE_SNAR ${BACKUP_DIR}/$$ES_BACKUP_FILE_SNAR;\
-		fi;
+		fi;\
+	fi
 
 elasticsearch-restore: s3-pull
-	@${MAKE} -C ${GITBACKEND} elasticsearch-restore ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar \
-		&& (echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > elasticsearch-restore)
+	@if [ ! -f "elasticsearch-restore" ];then\
+		${MAKE} -C ${GITBACKEND} elasticsearch-restore ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar \
+			&& (echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > elasticsearch-restore);\
+	fi
 
 backup-dir:
 	mkdir -p ${BACKUP_DIR}
@@ -394,7 +399,7 @@ down:
 clean: down
 	sudo rm -rf ${GITBACKEND} frontend ${DATA_DIR} s3.tag config \
 		recipe-run recipe-run-diff s3-backup-list s3-backup-list-diff elasticsearch-restore watch-run full diff\
-		backup backup-diff
+		backup backup-diff s3-pull s3-pull
 
 # launch all locally
 # configure
