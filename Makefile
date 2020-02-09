@@ -129,7 +129,7 @@ recipe-run: s3.tag
 		${MAKE} up;\
 		echo running recipe on full data;\
 		${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} &&\
-			touch recipe-run &&\
+			touch recipe-run s3-pull &&\
 			(echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > elasticsearch-restore);\
 	fi
 
