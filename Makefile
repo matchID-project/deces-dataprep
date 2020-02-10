@@ -17,8 +17,8 @@ BACKUP_DIR = ${PWD}/${GITBACKEND}/backup
 # files to sync:
 FILES_TO_SYNC=(^|\s)deces-.*.txt(.gz)?($$|\s)
 # files to process:
-FILES_TO_PROCESS=deces-[0-9]{4}.txt.gz
-FILES_TO_PROCESS_DIFF=deces-2020-m[0-9]{2}.txt.gz
+FILES_TO_PROCESS=deces-([0-9]{4}|2020-m[0-9]{2}).txt.gz
+#FILES_TO_PROCESS_DIFF=deces-2020-m[0-9]{2}.txt.gz
 DATAGOUV_CATALOG = ${DATA_DIR}/${DATAGOUV_DATASET}.datagouv.list
 S3_BUCKET = ${DATAGOUV_DATASET}
 S3_CATALOG = ${DATA_DIR}/${DATAGOUV_DATASET}.s3.list
