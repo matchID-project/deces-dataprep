@@ -136,7 +136,7 @@ recipe-run: s3.tag
 full-check: datagouv-to-s3 s3-backup-list
 	@if [ -s s3-backup-list ]; then\
 		echo recipe has already been runned on full and saved on s3;\
-		touch recipe-run watch-run backup s3-push;\
+		touch recipe-run watch-run backup s3-push no-remote;\
 	fi
 
 full: diff-check full-check recipe-run
@@ -432,7 +432,7 @@ down:
 clean: down
 	sudo rm -rf ${GITBACKEND} frontend ${DATA_DIR} s3.tag config \
 		recipe-run recipe-run-diff s3-backup-list s3-backup-list-diff elasticsearch-restore watch-run full diff\
-		backup backup-diff s3-pull s3-pull
+		backup backup-diff s3-pull s3-pull no-remote
 
 # launch all locally
 # configure
@@ -442,7 +442,9 @@ all-step0: ${GITBACKEND} config
 all-step1: docker-post-config full
 
 # second step is backup, diff run and <5 minutes (can be travis-ed
-all-step2: s3-push backend-clean-logs diff watch-run-diff s3-push-diff
+all-step2: s3-push
+
+all-step3: backend-clean-logs diff watch-run-diff s3-push-diff
 
 all: all-step0 all-step1 watch-run all-step2
 	@echo ended with succes !!!
@@ -528,5 +530,8 @@ remote-step2: remote-watch
 
 remote-clean: ${CLOUD}-instance-delete
 
-remote-all: remote-config remote-step1 remote-watch remote-step2 remote-clean
+remote-all: full-check
+	@if [ ! -f "no-remote" ];then\
+		${MAKE} remote-config remote-step1 remote-watch remote-step2 remote-clean;\
+	fi
 
