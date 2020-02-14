@@ -1,20 +1,15 @@
 datasets:
   deces_index:
     connector: elasticsearch
-    table: deces 
-    #chunk: 500
-    #timeout: 30
-    #thread_count: 1
-    #safe: False
-    #max_tries: 1
+    table: deces
     body:
       settings:
-        #index.store.type: mmapfs 
+        #index.store.type: mmapfs
         index:
           refresh_interval: 30s
           number_of_replicas: 0
         analysis:
-          analyzer: 
+          analyzer:
             autocomplete_analyzer:
               tokenizer: "edge_tokenizer2"
               filter: ["asciifolding", "lowercase"]
@@ -37,29 +32,56 @@ datasets:
             type: text
           NOM:
             type: text
+            fields:
+              raw:
+                type: keyword
           PRENOM:
             type: text
+            fields:
+              raw:
+                type: keyword
           PRENOMS:
             type: text
+            fields:
+              raw:
+                type: keyword
           DATE_NAISSANCE:
             type: text
             index_prefixes:
               min_chars: 4
               max_chars: 4
+            fields:
+              raw:
+                type: keyword
           COMMUNE_NAISSANCE:
             type: text
+            fields:
+              raw:
+                type: keyword
           DEPARTEMENT_NAISSANCE:
             type: keyword
           PAYS_NAISSANCE:
             type: text
+            fields:
+              raw:
+                type: keyword
           DATE_DECES:
             type: text
             index_prefixes:
               min_chars: 4
               max_chars: 4
+            fields:
+              raw:
+                type: keyword
           COMMUNE_DECES:
             type: text
+            fields:
+              raw:
+                type: keyword
           DEPARTEMENT_DECES:
             type: keyword
           PAYS_DECES:
             type: text
+            fields:
+              raw:
+                type: keyword
