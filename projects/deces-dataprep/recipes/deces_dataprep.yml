@@ -8,11 +8,17 @@ recipes:
     steps:
       - exec:
         #tag dataset and records with uniq id
+          - df['SOURCE'] = str(desc['source']['name'])
           - "df['UID'] = df.apply(lambda row: sha1(tuple(row)), axis=1).str.slice(stop=16)"
           - df['NOM_PRENOMS'] = df['NOM_PRENOMS'].str.normalize('NFKD').str.encode('ASCII',errors='replace')
           - df['COMMUNE_NAISSANCE'] = df['COMMUNE_NAISSANCE'].str.normalize('NFKD').str.encode('ASCII',errors='replace')
           - df['PAYS_NAISSANCE'] = df['PAYS_NAISSANCE'].str.normalize('NFKD').str.encode('ASCII',errors='replace')
           - df['NUM_DECES'] = df['NUM_DECES'].str.normalize('NFKD').str.encode('ASCII',errors='replace')
+      - replace:
+          select: SOURCE
+          regex:
+            - '.*/deces-': ''
+            - '.txt.gz': ''
       - replace:
           select: (NOM_PRENOMS|COMMUNE_NAISSANCE|PAYS_NAISSACE)$
           regex:
