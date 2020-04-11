@@ -6,14 +6,12 @@ recipes:
     output: deces_index
     threads: !ENV ${RECIPE_THREADS}
     steps:
+      - normalize:
+          select: (NOM_PRENOMS|COMMUNE_NAISSANCE|PAYS_NAISSANCE|NUM_DECES)$
       - exec:
-        #tag dataset and records with uniq id
+        # tag dataset and records with uniq id
           - df['SOURCE'] = str(desc['source']['name'])
           - "df['UID'] = df.apply(lambda row: sha1(tuple(row)), axis=1).str.slice(stop=16)"
-          - df['NOM_PRENOMS'] = df['NOM_PRENOMS'].str.normalize('NFKD').str.encode('ASCII',errors='replace')
-          - df['COMMUNE_NAISSANCE'] = df['COMMUNE_NAISSANCE'].str.normalize('NFKD').str.encode('ASCII',errors='replace')
-          - df['PAYS_NAISSANCE'] = df['PAYS_NAISSANCE'].str.normalize('NFKD').str.encode('ASCII',errors='replace')
-          - df['NUM_DECES'] = df['NUM_DECES'].str.normalize('NFKD').str.encode('ASCII',errors='replace')
       - replace:
           select: SOURCE
           regex:
@@ -51,13 +49,13 @@ recipes:
       - delete:
           select: NOM_PRENOMS
       - exec:
-          - df['NOM'] = df['NOM'].str.title()
-          - df['PRENOMS'] = df['PRENOMS'].str.title()
-          - df['PRENOM'] = df['PRENOM'].str.title()
+          - df['NOM'] = df['NOM'].astype('str').str.title()
+          - df['PRENOMS'] = df['PRENOMS'].astype('str').str.title()
+          - df['PRENOM'] = df['PRENOM'].astype('str').str.title()
           - df['PRENOMS_NOM'] = df['PRENOMS'] + ' ' + df['NOM']
-          - df['PRENOMS_NOM'] = df['PRENOMS_NOM'].str.lower()
+          - df['PRENOMS_NOM'] = df['PRENOMS_NOM'].astype('str').str.lower()
           - df['PRENOM_NOM'] = df['PRENOM']+ " " + df['NOM']
-          - df['PRENOM_NOM'] = df['PRENOM_NOM'].str.lower()
+          - df['PRENOM_NOM'] = df['PRENOM_NOM'].astype('str').str.lower()
       #dates
       - replace:
           select: DATE_DECES|DATE_NAISSANCE
@@ -113,11 +111,11 @@ recipes:
       - exec: >
           df['PAYS_NAISSANCE'] = np.where(
             df['PAYS_NAISSANCE'] == "",
-            df['PAYS_NAISSANCE_LIBCOG'].str.title(),
+            df['PAYS_NAISSANCE_LIBCOG'].astype('str').str.title(),
             np.where(
               df['PAYS_NAISSANCE'] != df['PAYS_NAISSANCE_LIBCOG'],
-              df['PAYS_NAISSANCE_LIBCOG'].str.title() + ", " +  df['PAYS_NAISSANCE'].str.title(),
-              df['PAYS_NAISSANCE'].str.title()
+              df['PAYS_NAISSANCE_LIBCOG'].astype('str').str.title() + ", " +  df['PAYS_NAISSANCE'].astype('str').str.title(),
+              df['PAYS_NAISSANCE'].astype('str').str.title()
             )
           )
       - delete:
@@ -145,14 +143,14 @@ recipes:
             COMMUNE_NAISSANCE_ALTER: newest_name
             DEPARTEMENT_NAISSANCE: dep_code
       - exec:
-        - df['COMMUNE_NAISSANCE'] = df['COMMUNE_NAISSANCE'].str.title()
+        - df['COMMUNE_NAISSANCE'] = df['COMMUNE_NAISSANCE'].astype('str').str.title()
       - replace:
           select: COMMUNE_NAISSANCE
           regex:
             - ^(.*)\s*\((\w+)\)$: '\2 \1'
       - exec:
           - df['COMMUNE_NAISSANCE_ALL'] = np.where(
-                df['COMMUNE_NAISSANCE'] == df['COMMUNE_NAISSANCE_REF'].str.normalize('NFKD').str.encode('ASCII','ignore').str.title(),
+                df['COMMUNE_NAISSANCE'] == df['COMMUNE_NAISSANCE_REF'].str.normalize('NFKD').str.encode('ASCII','ignore').str.decode('ASCII').astype('str').str.title(),
                 df['COMMUNE_NAISSANCE_REF'],
                 np.where(
                   df['COMMUNE_NAISSANCE_REF'] == "",
@@ -164,7 +162,7 @@ recipes:
                 df['COMMUNE_NAISSANCE_REF'] == df['COMMUNE_NAISSANCE_ALTER'],
                 df['COMMUNE_NAISSANCE_ALL'],
                 np.where(
-                  df['COMMUNE_NAISSANCE'] == df['COMMUNE_NAISSANCE_ALTER'].str.normalize('NFKD').str.encode('ASCII','ignore').str.title(),
+                  df['COMMUNE_NAISSANCE'] == df['COMMUNE_NAISSANCE_ALTER'].str.normalize('NFKD').str.encode('ASCII','ignore').str.decode('ASCII').astype('str').str.title(),
                   df['COMMUNE_NAISSANCE_ALL'],
                   df['COMMUNE_NAISSANCE_ALL'] + "/" + df['COMMUNE_NAISSANCE_ALTER']
                 )
@@ -222,7 +220,7 @@ recipes:
       - delete:
           select: PAYS_DECES_CODE
       - exec:
-          - df['PAYS_DECES'] = df['PAYS_DECES'].str.title()
+          - df['PAYS_DECES'] = df['PAYS_DECES'].astype('str').str.title()
 
       #historique commune décès
       - map:
