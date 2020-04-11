@@ -44,14 +44,8 @@ include ./artifacts
 
 config: ${GITBACKEND}
 	@echo checking system prerequisites
-	@${MAKE} -C ${GITBACKEND} install-prerequisites
-	@sudo apt-get install -yq jq curl
-	@${MAKE} -C ${GITBACKEND} register-secrets
+	@${MAKE} -C ${GITBACKEND} config
 	@echo "prerequisites installed" > config
-
-docker-post-config:
-	@${MAKE} -C ${GITBACKEND} backend-docker-pull
-	@docker pull matchid/tools
 
 ${DATA_DIR}:
 	@if [ ! -d "${DATA_DIR}" ]; then mkdir -p ${DATA_DIR};fi
@@ -115,8 +109,8 @@ ${GITBACKEND}:
 	@echo "export PROJECTS=${PWD}/projects" >> ${GITBACKEND}/artifacts
 	@echo "export S3_BUCKET=${S3_BUCKET}" >> ${GITBACKEND}/artifacts
 
-dev: config docker-post-config
-	${MAKE} -C ${GITBACKEND} frontend-build backend elasticsearch frontend
+dev: config
+	${MAKE} -C ${GITBACKEND} up
 
 dev-stop:
 	${MAKE} -C ${GITBACKEND} frontend-stop backend-stop elasticsearch-stop
@@ -439,7 +433,7 @@ clean: down
 all-step0: ${GITBACKEND} config
 
 # first step should be 4 to 10 hours if not already runned (can't be travis-ed)
-all-step1: docker-post-config full
+all-step1: full
 
 # second step is backup, diff run and <5 minutes (can be travis-ed
 all-step2: s3-push
