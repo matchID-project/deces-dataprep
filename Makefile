@@ -1,37 +1,35 @@
 SHELL=/bin/bash
 
-APP=deces-dataprep
-PWD := $(shell pwd)
-GIT = $(shell which git)
-GITROOT = https://github.com/matchid-project
-GITBACKEND = backend
-MAKE = $(shell which make)
-RECIPE = deces_dataprep
-RECIPE_THREADS = 4
-RECIPE_QUEUE = 1
-TIMEOUT = 2520
-DATAGOUV_API = https://www.data.gouv.fr/api/1/datasets
-DATAGOUV_DATASET = fichier-des-personnes-decedees
-DATA_DIR = ${PWD}/data
-BACKUP_DIR = ${PWD}/${GITBACKEND}/backup
+export DATAPREP_VERSION := $(shell cat projects/deces-dataprep/recipes/deces_dataprep.yml projects/deces-dataprep/datasets/deces_index.yml  | sha1sum | awk '{print $1}' | cut -c-8)
+export APP=deces-dataprep
+export PWD := $(shell pwd)
+export GIT = $(shell which git)
+export GITROOT = https://github.com/matchid-project
+export GIT_BACKEND = backend
+export MAKEBIN = $(shell which make)
+export MAKE = ${MAKEBIN} --no-print-directory -s
+export RECIPE = deces_dataprep
+export RECIPE_THREADS = 4
+export RECIPE_QUEUE = 1
+export TIMEOUT = 2520
+export DATAGOUV_API = https://www.data.gouv.fr/api/1/datasets
+export DATAGOUV_DATASET = fichier-des-personnes-decedees
+export DATA_DIR=${PWD}/data
+export BACKUP_DIR = ${PWD}/${GIT_BACKEND}/backup
+export TOOLS = ${PWD}/${GIT_BACKEND}/tools
+export DATA_TAG=${PWD}/data-tag
+export BACKUP_CHECK=${PWD}/backup-check
 # files to sync:
-FILES_TO_SYNC=(^|\s)deces-.*.txt(.gz)?($$|\s)
+export FILES_TO_SYNC=deces-.*.txt(.gz)?
 # files to process:
-FILES_TO_PROCESS=deces-([0-9]{4}|2020-m[0-9]{2}).txt.gz
-#FILES_TO_PROCESS_DIFF=deces-2020-m[0-9]{2}.txt.gz
-DATAGOUV_CATALOG = ${DATA_DIR}/${DATAGOUV_DATASET}.datagouv.list
-S3_BUCKET = ${DATAGOUV_DATASET}
-S3_CATALOG = ${DATA_DIR}/${DATAGOUV_DATASET}.s3.list
-S3_CONFIG = s3_scaleway.conf
-DATAPREP_VERSION := $(shell cat projects/deces-dataprep/recipes/deces_dataprep.yml projects/deces-dataprep/datasets/deces_index.yml  | sha1sum | awk '{print $1}' | cut -c-8)
-SSHID=matchid@matchid.project.gmail.com
-SSHKEY_PRIVATE = ${HOME}/.ssh/id_rsa_${APP}
-SSHKEY = ${SSHKEY_PRIVATE}.pub
-SSHKEYNAME = ${APP}
-OS_TIMEOUT = 60
-SCW_SERVER_FILE_ID=scw.id
+export FILES_TO_PROCESS=deces-([0-9]{4}|2020-m[0-9]{2}).txt.gz
+export SSHID=matchid@matchid.project.gmail.com
+export SSHKEY_PRIVATE = ${HOME}/.ssh/id_rsa_${APP}
+export SSHKEY = ${SSHKEY_PRIVATE}.pub
+export SSHKEYNAME = ${APP}
+export OS_TIMEOUT = 60
+export SCW_SERVER_FILE_ID=scw.id
 SCW_TIMEOUT= 180
-AWS=${PWD}/aws
 EC2_PROFILE=default
 EC2=ec2 ${EC2_ENDPOINT_OPTION} --profile ${EC2_PROFILE}
 EC2_SERVER_FILE_ID=${PWD}/ec2.id
@@ -42,133 +40,83 @@ SSHOPTS=-o "StrictHostKeyChecking no" -i ${SSHKEY} ${CLOUD_SSHOPTS}
 dummy               := $(shell touch artifacts)
 include ./artifacts
 
-config: ${GITBACKEND}
+config: ${GIT_BACKEND}
 	@echo checking system prerequisites
-	@${MAKE} -C ${GITBACKEND} config
-	@echo "prerequisites installed" > config
+	@${MAKE} -C ${GIT_BACKEND} config && \
+	echo "prerequisites installed" > config
 
-${DATA_DIR}:
-	@if [ ! -d "${DATA_DIR}" ]; then mkdir -p ${DATA_DIR};fi
+datagouv-to-storage: config
+	@${MAKE} -C ${TOOLS} datagouv-to-storage \
+		DATAGOUV_DATASET=${DATAGOUV_DATASET} BUCKET=${DATAGOUV_DATASET}\
+		FILES_PATTERN='${FILES_TO_SYNC}' &&\
+	touch datagouv-to-storage
 
-${DATAGOUV_CATALOG}: config ${DATA_DIR}
-	@echo getting ${DATAGOUV_DATASET} catalog from data.gouv API ${DATAGOUV_API}
-	@curl -s --fail ${DATAGOUV_API}/${DATAGOUV_DATASET}/ | \
-		jq  -cr '.resources[] | .title + " " +.checksum.value + " " + .url' | sort > ${DATAGOUV_CATALOG}
+${DATA_TAG}: config
+	@${MAKE} -C ${TOOLS} catalog-tag CATALOG_TAG=${DATA_TAG}\
+		DATAGOUV_DATASET=${DATAGOUV_DATASET} BUCKET=${DATAGOUV_DATASET}\
+		FILES_PATTERN=${FILES_TO_PROCESS} > /dev/null 2>&1
 
-datagouv-get-catalog: ${DATAGOUV_CATALOG}
+data-tag: ${DATA_TAG}
 
-datagouv-get-files: ${DATAGOUV_CATALOG}
-	@if [ -s "${S3_CATALOG}" ]; then\
-		(echo egrep -v $$(cat ${S3_CATALOG} | sed 's/\r//g' | tr '\n' '|' | sed 's/.gz//g;s/^/"(/;s/|$$/)"/') ${DATAGOUV_CATALOG} | sh > ${DATA_DIR}/tmp.list) || true;\
+${BACKUP_CHECK}: data-tag
+	@${MAKE} -s -C ${TOOLS} get-catalog CATALOG=${BACKUP_CHECK}\
+		DATAGOUV_DATASET=${DATAGOUV_DATASET} BUCKET=${DATAGOUV_DATASET}\
+		FILES_PATTERN=esdata_${DATAPREP_VERSION}_$$(cat ${PWD}/data-tag).tar &&\
+	if [ -s ${BACKUP_CHECK} ]; then\
+		echo backup already exist on remote storage;\
 	else\
-		cp ${DATAGOUV_CATALOG} ${DATA_DIR}/tmp.list;\
+		echo no previous backup found;\
 	fi
 
-	@if [ -s "${DATA_DIR}/tmp.list" ]; then\
-		i=0;\
-		for file in $$(awk '{print $$1}' ${DATA_DIR}/tmp.list); do\
-			if [ ! -f ${DATA_DIR}/$$file.gz.sha1 ]; then\
-				echo getting $$file ;\
-				grep $$file ${DATA_DIR}/tmp.list | awk '{print $$3}' | xargs curl -s > ${DATA_DIR}/$$file; \
-				grep $$file ${DATA_DIR}/tmp.list | awk '{print $$2}' > ${DATA_DIR}/$$file.sha1.src; \
-				sha1sum < ${DATA_DIR}/$$file | awk '{print $$1}' > ${DATA_DIR}/$$file.sha1.dst; \
-				((diff ${DATA_DIR}/$$file.sha1.src ${DATA_DIR}/$$file.sha1.dst > /dev/null) || echo error downloading $$file); \
-				gzip ${DATA_DIR}/$$file; \
-				sha1sum ${DATA_DIR}/$$file.gz > ${DATA_DIR}/$$file.gz.sha1; \
-				((i++));\
-			fi;\
-		done;\
-		if [ "$$i" == "0" ]; then\
-			echo no new file downloaded from datagouv;\
-		else\
-			echo "$$i file(s) donwloaded from datagouv";\
-		fi;\
-	else\
-		echo no new file downloaded from datagouv;\
-	fi
+backup-check: ${BACKUP_CHECK}
 
-${S3_CATALOG}: config ${DATA_DIR}
-	@echo getting ${S3_BUCKET} catalog from s3 API
-	@${AWS} s3 ls ${S3_BUCKET} | awk '{print $$NF}' | egrep '${FILES_TO_SYNC}' | sort > ${S3_CATALOG}
+backup-pull: data-tag
+	@${MAKE} -C ${TOOLS} storage-pull\
+		BUCKET=${DATAGOUV_DATASET}\
+		FILE=esdata_${DATAPREP_VERSION}_$$(cat data.tag).tar &&\
+	touch backup-pull
 
-s3-get-catalog: ${S3_CATALOG}
-
-datagouv-to-s3: s3-get-catalog datagouv-get-files
-	@for file in $$(ls ${DATA_DIR} | egrep '${FILES_TO_SYNC}');do\
-		${AWS} s3 cp ${DATA_DIR}/$$file s3://${S3_BUCKET}/$$file;\
-		${AWS} s3api put-object-acl --acl public-read --bucket ${S3_BUCKET} --key $$file && echo $$file acl set to public;\
-	done
-	@touch datagouv-to-s3
-
-${GITBACKEND}:
+${GIT_BACKEND}:
 	@echo configuring matchID
-	@${GIT} clone ${GITROOT}/${GITBACKEND}
-	@cp artifacts ${GITBACKEND}/artifacts
-	@cp docker-compose-local.yml ${GITBACKEND}/docker-compose-local.yml
-	@echo "export ES_NODES=1" >> ${GITBACKEND}/artifacts
-	@echo "export PROJECTS=${PWD}/projects" >> ${GITBACKEND}/artifacts
-	@echo "export S3_BUCKET=${S3_BUCKET}" >> ${GITBACKEND}/artifacts
+	@${GIT} clone -q ${GITROOT}/${GIT_BACKEND}
+	@cp artifacts ${GIT_BACKEND}/artifacts
+	@cp docker-compose-local.yml ${GIT_BACKEND}/docker-compose-local.yml
+	@echo "export ES_NODES=1" >> ${GIT_BACKEND}/artifacts
+	@echo "export PROJECTS=${PWD}/projects" >> ${GIT_BACKEND}/artifacts
+	@echo "export S3_BUCKET=${DATAGOUV_DATASET}" >> ${GIT_BACKEND}/artifacts
 
 dev: config
-	${MAKE} -C ${GITBACKEND} up
+	@${MAKE} -C ${GIT_BACKEND} elasticsearch backend frontend && matchID started, go to http://localhost:8081
 
 dev-stop:
-	${MAKE} -C ${GITBACKEND} frontend-stop backend-stop elasticsearch-stop
+	if [ -f config ]; then\
+		${MAKE} -C ${GIT_BACKEND} frontend-stop backend-stop elasticsearch-stop;
+	fi
 
 up:
-	${MAKE} -C ${GITBACKEND} elasticsearch wait-elasticsearch backend wait-backend
+	@${MAKE} -C ${GIT_BACKEND} elasticsearch backend && echo matchID backend services started
 
-recipe-run: s3.tag
-	@if [ ! -f "recipe-run" ];then\
-		${MAKE} up;\
+recipe-run: data-tag
+	@if [ ! -f recipe-run ];then\
+		${MAKE} -C ${GIT_BACKEND} elasticsearch ${MAKEOVERRIDES};\
 		echo running recipe on full data;\
-		${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} &&\
+		${MAKE} -C ${GIT_BACKEND} recipe-run RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} &&\
 			touch recipe-run s3-pull &&\
-			(echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > elasticsearch-restore);\
+			(echo esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}).tar > elasticsearch-restore);\
 	fi
 
-full-check: datagouv-to-s3 s3-backup-list
-	@if [ -s s3-backup-list ]; then\
-		echo recipe has already been runned on full and saved on s3;\
-		touch recipe-run watch-run backup s3-push no-remote;\
+full-check: datagouv-to-storage backup-check
+	@if [ -s backup-check ]; then\
+		echo recipe has already been runned on full and saved on remote storage;\
+		touch recipe-run watch-run backup backup-push no-remote;\
 	fi
 
-full: diff-check full-check recipe-run
+full: full-check recipe-run
 	@touch full
 
-recipe-run-diff: s3-diff.tag
-	@if [ ! -f "recipe-run-diff" ];then\
-		${MAKE} up;\
-		echo running recipe on diff;\
-		rm -f elasticsearch-restore watch-run;\
-		${MAKE} -C ${GITBACKEND} recipe-run RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} FILES_TO_PROCESS=${FILES_TO_PROCESS_DIFF}\
-			&& touch recipe-run-diff;\
-	fi
-
-diff-check: datagouv-to-s3 s3-backup-list-diff
-	@if [ -s s3-backup-list-diff ]; then\
-		echo diff recipe has already been runned and saved on s3;\
-		touch elasticsearch-restore full recipe-run backup s3-push \
-			s3-pull recipe-run-diff watch-run backup-diff s3-push-diff;\
-	fi;
-
-wait-recipe-diff-up:
-	@timeout=10 ; ret=1 ; \
-	until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do \
-		f=$$(find ${GITBACKEND}/log/ -iname '*${RECIPE}*' | sort | tail -1);\
-		if [ -z "$$f" ] ; then \
-			echo "waiting for start of job $$timeout" ; \
-			sleep 1 ;\
-		else\
-			ret=0;\
-		fi ; ((timeout--)); done ; exit $$ret;
-	@echo "recipe properly launched"
-
-diff: diff-check elasticsearch-restore recipe-run-diff
-	@touch diff
 
 backend-clean-logs:
-	rm -f ${PWD}/${GITBACKEND}/log/*${RECIPE}*log
+	rm -f ${PWD}/${GIT_BACKEND}/log/*${RECIPE}*log
 
 ls:
 	@echo iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
@@ -178,7 +126,7 @@ ls:
 watch-run:
 	@timeout=${TIMEOUT} ; ret=1 ; \
 		until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do \
-			f=$$(find ${GITBACKEND}/log/ -iname '*${RECIPE}*' | sort | tail -1);\
+			f=$$(find ${GIT_BACKEND}/log/ -iname '*${RECIPE}*' | sort | tail -1);\
 			((tail $$f | grep "end of all" > /dev/null) || exit 1) ; \
 			ret=$$? ; \
 			if [ "$$ret" -ne "0" ] ; then \
@@ -186,88 +134,40 @@ watch-run:
 				grep wrote $$f |awk 'BEGIN{s=0}{t=$$4;s+=$$12}END{print t " wrote " s}' ;\
 				sleep 10 ;\
 			fi ; ((timeout--)); done ; exit $$ret
-	@find ${GITBACKEND}/log/ -iname '*dataprep_personnes-dedecees_search*' | sort | tail -1 | xargs tail
+	@find ${GIT_BACKEND}/log/ -iname '*dataprep_personnes-dedecees_search*' | sort | tail -1 | xargs tail
 
-watch-run-diff:
-	@if [ ! -s s3-backup-list ];then\
-		timeout=${TIMEOUT} ; ret=1 ; \
-			until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do \
-				f=$$(find ${GITBACKEND}/log/ -iname '*${RECIPE}*' | sort | tail -1);\
-				((tail $$f | grep "end of all" > /dev/null) || exit 1) ; \
-				ret=$$? ; \
-				if [ "$$ret" -ne "0" ] ; then \
-					echo "waiting for end of job $$timeout" ; \
-					grep wrote $$f |awk 'BEGIN{s=0}{t=$$4;s+=$$12}END{print t " wrote " s}' ;\
-					sleep 10 ;\
-				fi ; ((timeout--)); done ; exit $$ret;\
-		(find ${GITBACKEND}/log/ -iname '*dataprep_personnes-dedecees_search*' | sort | tail -1 | xargs tail);\
-	fi
-
-
-s3.tag:
-	@${AWS} s3 ls ${S3_BUCKET} | egrep '${FILES_TO_PROCESS}' | awk '{print $$NF}' | sort | sed 's/\s*$$//'| sha1sum | awk '{print $1}' | cut -c-8 > s3.tag
-
-s3-diff.tag:
-	@${AWS} s3 ls ${S3_BUCKET} | egrep '${FILES_TO_PROCESS_DIFF}' | awk '{print $$NF}' | sort | sed 's/\s*$$//'| sha1sum | awk '{print $1}' | cut -c-8 > s3-diff.tag
-
-s3-backup-list: s3.tag
-	@(${AWS} s3 ls ${S3_BUCKET} | awk '{print $$NF}' | grep esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > /dev/null)\
-		&& ((echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > s3-backup-list) && touch backup s3-push)\
-		|| touch s3-backup-list
-
-s3-backup-list-diff: s3.tag s3-diff.tag
-	@(${AWS} s3 ls ${S3_BUCKET} | awk '{print $$NF}' | grep esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).tar > /dev/null)\
-		&& ((echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).tar > s3-backup-list-diff) && touch backup-diff s3-push-diff)\
-		|| touch s3-backup-list-diff
-
-s3-pull:
-	@if [ ! -f "s3-pull" ];then\
-		ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar;\
-		ES_BACKUP_FILE_SNAR=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).snar;\
-		if [ ! -f "${BACKUP_DIR}/$$ES_BACKUP_FILE" ];then\
-				echo pulling s3://${S3_BUCKET}/$$ES_BACKUP_FILE;\
-				${AWS} s3 cp s3://${S3_BUCKET}/$$ES_BACKUP_FILE ${BACKUP_DIR}/$$ES_BACKUP_FILE;\
-				${AWS} s3 cp s3://${S3_BUCKET}/$$ES_BACKUP_FILE_SNAR ${BACKUP_DIR}/$$ES_BACKUP_FILE_SNAR;\
-		fi;\
-	fi
-
-elasticsearch-restore: s3-pull
+elasticsearch-restore: backup-pull
 	@if [ ! -f "elasticsearch-restore" ];then\
-		${MAKE} -C ${GITBACKEND} elasticsearch-restore ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar \
-			&& (echo esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar > elasticsearch-restore);\
+		${MAKE} -C ${GIT_BACKEND} elasticsearch-restore ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}).tar \
+			&& (echo esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}).tar > elasticsearch-restore);\
 	fi
 
 backup-dir:
 	mkdir -p ${BACKUP_DIR}
 
-backup: s3.tag
-	@ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar;\
-	ES_BACKUP_FILE_SNAR=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).snar;\
-	if [ ! -f "${BACKUP_DIR}/$$ES_BACKUP_FILE" ];then\
-		${MAKE} -C ${GITBACKEND} elasticsearch-backup \
-			ES_BACKUP_FILE=$$ES_BACKUP_FILE\
-			ES_BACKUP_FILE_SNAR=$$ES_BACKUP_FILE_SNAR;\
-	fi;\
-	touch backup
+backup: data-tag
+	@if [ ! -f backup ];then\
+		ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}).tar;\
+		ES_BACKUP_FILE_SNAR=esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}).snar;\
+		if [ ! -f "${BACKUP_DIR}/$$ES_BACKUP_FILE" ];then\
+			${MAKE} -C ${GIT_BACKEND} elasticsearch-backup \
+				ES_BACKUP_FILE=$$ES_BACKUP_FILE\
+				ES_BACKUP_FILE_SNAR=$$ES_BACKUP_FILE_SNAR;\
+		fi;\
+		touch backup;\
+	fi
 
-backup-diff: s3-diff.tag
-	@ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).tar;\
-	ES_BACKUP_FILE_SNAR=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).snar;\
-	ES_BACKUP_FILE_SNAR_NEW=esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).snar;\
-	if [ ! -f "${BACKUP_DIR}/$$ES_BACKUP_FILE" ];then\
-		${MAKE} -C ${GITBACKEND} elasticsearch-backup \
-			ES_BACKUP_FILE=$$ES_BACKUP_FILE\
-			ES_BACKUP_FILE_SNAR=$$ES_BACKUP_FILE_SNAR;\
-		sudo cp ${BACKUP_DIR}/$$ES_BACKUP_FILE_SNAR ${BACKUP_DIR}/$$ES_BACKUP_FILE_SNAR_NEW;\
-	fi;\
-	touch backup-diff
-
-s3-push: s3.tag backup
-	${MAKE} -C ${GITBACKEND} elasticsearch-s3-push S3_BUCKET=fichier-des-personnes-decedees ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).tar ES_BACKUP_FILE_SNAR=esdata_${DATAPREP_VERSION}_$$(cat s3.tag).snar
-
-s3-push-diff: s3.tag backup-diff
-	${MAKE} -C ${GITBACKEND} elasticsearch-s3-push S3_BUCKET=fichier-des-personnes-decedees ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).tar ES_BACKUP_FILE_SNAR=esdata_${DATAPREP_VERSION}_$$(cat s3.tag)_$$(cat s3-diff.tag).snar
-
+backup-push: data-tag backup
+	@if [ ! -f backup-push ];then\
+		ES_BACKUP_FILE_ROOT=esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG});\
+		${MAKE} -C ${GIT_BACKEND} elasticsearch-storage-push\
+			BUCKET=fichier-des-personnes-decedees\
+			ES_BACKUP_FILE=$$ES_BACKUP_FILE_ROOT.tar\
+			ES_BACKUP_FILE_SNAR=$$ES_BACKUP_FILE_ROOT.snar &&\
+			touch backup-push &&\
+			SIZE=`cd ${BACKUP_DIR}; du -sh $$ES_BACKUP_FILE_ROOT.tar`;\
+			echo pushed $$SIZE to storage ${DATAGOUV_DATASET};\
+	fi
 
 ${SSHKEY}:
 	@echo ssh keygen
@@ -421,24 +321,24 @@ SCW-instance-delete:
 	fi
 
 down:
-	${MAKE} -C ${GITBACKEND} backend-stop elasticsearch-stop frontend-stop || true
+	@if [ -f config ]; then\
+		(${MAKE} -C ${GIT_BACKEND} backend-stop elasticsearch-stop frontend-stop || true);\
+	fi
 
 clean: down
-	sudo rm -rf ${GITBACKEND} frontend ${DATA_DIR} s3.tag config \
-		recipe-run recipe-run-diff s3-backup-list s3-backup-list-diff elasticsearch-restore watch-run full diff\
-		backup backup-diff s3-pull s3-pull no-remote
+	@sudo rm -rf ${GIT_BACKEND} frontend ${DATA_DIR} data-tag config \
+		recipe-run backup-check elasticsearch-restore watch-run full\
+		backup backup-pull backup-push no-remote
 
 # launch all locally
 # configure
-all-step0: ${GITBACKEND} config
+all-step0: ${GIT_BACKEND} config
 
-# first step should be 4 to 10 hours if not already runned (can't be travis-ed)
+# first step should be 1h30 to 10 hours if not already runned (can't be travis-ed)
 all-step1: full
 
-# second step is backup, diff run and <5 minutes (can be travis-ed
-all-step2: s3-push
-
-all-step3: backend-clean-logs diff watch-run-diff s3-push-diff
+# second step is backup
+all-step2: backup-push
 
 all: all-step0 all-step1 watch-run all-step2
 	@echo ended with succes !!!
@@ -466,7 +366,7 @@ remote-config: ${CLOUD}-instance-wait
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST git clone ${GITROOT}/${APP};\
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST sudo apt-get update -y;\
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST sudo apt-get install -y make;\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step0 ${MAKEOVERRIDES};
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST ${MAKE} -C ${APP} all-step0 ${MAKEOVERRIDES};
 
 remote-step1:
 	@if [ "${CLOUD}" == "OS" ];then\
@@ -487,7 +387,7 @@ remote-step1:
 		cat ${S3_CONFIG} | ${REMOTE_HOST} ssh ${SSHOPTS} $$SSHUSER@$$HOST "cat > .aws/config";\
 		echo -e "[default]\naws_access_key_id=${aws_access_key_id}\naws_secret_access_key=${aws_secret_access_key}\n" |\
 			ssh ${SSHOPTS} $$SSHUSER@$$HOST 'cat > .aws/credentials';\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step1 aws_access_key_id=${aws_access_key_id} aws_secret_access_key=${aws_secret_access_key} ${MAKEOVERRIDES};
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST ${MAKE} -C ${APP} all-step1 aws_access_key_id=${aws_access_key_id} aws_secret_access_key=${aws_secret_access_key} ${MAKEOVERRIDES};
 
 remote-watch:
 	@if [ "${CLOUD}" == "OS" ];then\
@@ -519,7 +419,7 @@ remote-step2: remote-watch
 		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
 		SSHUSER=${SCW_SSHUSER};\
 	fi;\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} all-step2 aws_access_key_id=${aws_access_key_id} aws_secret_access_key=${aws_secret_access_key} ${MAKEOVERRIDES};\
+		ssh ${SSHOPTS} $$SSHUSER@$$HOST ${MAKE} -C ${APP} all-step2 aws_access_key_id=${aws_access_key_id} aws_secret_access_key=${aws_secret_access_key} ${MAKEOVERRIDES};\
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST rm .aws/credentials;
 
 remote-clean: ${CLOUD}-instance-delete
