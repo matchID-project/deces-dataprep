@@ -60,7 +60,7 @@ datagouv-to-storage: config
 ${DATA_TAG}: config
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} catalog-tag CATALOG_TAG=${DATA_TAG}\
 		DATAGOUV_DATASET=${DATAGOUV_DATASET} STORAGE_BUCKET=${STORAGE_BUCKET}\
-		FILES_PATTERN=${FILES_TO_PROCESS} > /dev/null 2>&1
+		FILES_PATTERN='${FILES_TO_PROCESS}' > /dev/null 2>&1
 
 data-tag: ${DATA_TAG}
 
