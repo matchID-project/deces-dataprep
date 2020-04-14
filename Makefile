@@ -16,6 +16,7 @@ export ES_MEM=1024m
 export RECIPE = deces_dataprep
 export RECIPE_THREADS = 4
 export RECIPE_QUEUE = 1
+export ES_THREADS = 2
 export TIMEOUT = 2520
 export DATAGOUV_API = https://www.data.gouv.fr/api/1/datasets
 export DATAGOUV_DATASET = fichier-des-personnes-decedees
@@ -86,9 +87,9 @@ ${GIT_BACKEND}:
 	@${GIT} clone -q ${GITROOT}/${GIT_BACKEND}
 	@cp artifacts ${GIT_BACKEND}/artifacts
 	@cp docker-compose-local.yml ${GIT_BACKEND}/docker-compose-local.yml
-	@echo "export ES_NODES=1" >> ${GIT_BACKEND}/artifacts
+	@echo "export ES_NODES=${ES_NODES}" >> ${GIT_BACKEND}/artifacts
 	@echo "export PROJECTS=${PWD}/projects" >> ${GIT_BACKEND}/artifacts
-	@echo "export S3_BUCKET=${DATAGOUV_DATASET}" >> ${GIT_BACKEND}/artifacts
+	@echo "export STORAGE_BUCKET=${STORAGE_BUCKET}" >> ${GIT_BACKEND}/artifacts
 
 dev: config
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch backend frontend &&\
@@ -108,7 +109,7 @@ recipe-run: data-tag
 		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch ES_NODES=${ES_NODES} ES_MEM=${ES_MEM} ${MAKEOVERRIDES};\
 		echo running recipe on full data;\
 		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} recipe-run \
-			RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} \
+			RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} ES_THREADS=${ES_THREADS} \
 			STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
 			${MAKEOVERRIDES} \
 			APP=backend APP_VERSION=$(shell cd ${APP_PATH}/${GIT_BACKEND} && make version | awk '{print $$NF}') \
