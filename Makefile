@@ -239,6 +239,7 @@ remote-clean:
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-clean\
 		APP=${APP} APP_VERSION=${DATAPREP_VERSION} GIT_BRANCH=${GIT_BRANCH} \
 		${MAKEOVERRIDES}
+	@rm ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS}/configured/*.deployed > /dev/null 2>&1
 
 remote-all: full-check
 	@if [ ! -f "no-remote" ];then\
