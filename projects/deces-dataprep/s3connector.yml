@@ -1,7 +1,7 @@
 connectors:
   s3:
     type: s3
-    chunk: 10000
+    chunk: !ENV ${CHUNK_SIZE}
     endpoint_url: https://s3.fr-par.scw.cloud
     region_name: fr-par
     bucket: !ENV ${STORAGE_BUCKET}

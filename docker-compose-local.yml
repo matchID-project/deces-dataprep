@@ -4,5 +4,6 @@ services:
   backend:
     environment:
       - FILES_TO_PROCESS
+      - CHUNK_SIZE
       - RECIPE_THREADS
       - RECIPE_QUEUE

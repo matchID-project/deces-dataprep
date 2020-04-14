@@ -13,6 +13,7 @@ export MAKEBIN = $(shell which make)
 export MAKE = ${MAKEBIN} --no-print-directory -s
 export ES_NODES=1
 export ES_MEM=1024m
+export CHUNK_SIZE=10000
 export RECIPE = deces_dataprep
 export RECIPE_THREADS = 4
 export RECIPE_QUEUE = 1
