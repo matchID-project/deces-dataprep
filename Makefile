@@ -3,9 +3,12 @@ SHELL=/bin/bash
 export DATAPREP_VERSION := $(shell cat projects/deces-dataprep/recipes/deces_dataprep.yml projects/deces-dataprep/datasets/deces_index.yml  | sha1sum | awk '{print $1}' | cut -c-8)
 export APP=deces-dataprep
 export PWD := $(shell pwd)
+export APP_PATH=${PWD}
 export GIT = $(shell which git)
 export GITROOT = https://github.com/matchid-project
+export GIT_BRANCH = master
 export GIT_BACKEND = backend
+export GIT_TOOLS = tools
 export MAKEBIN = $(shell which make)
 export MAKE = ${MAKEBIN} --no-print-directory -s
 export RECIPE = deces_dataprep
@@ -14,9 +17,9 @@ export RECIPE_QUEUE = 1
 export TIMEOUT = 2520
 export DATAGOUV_API = https://www.data.gouv.fr/api/1/datasets
 export DATAGOUV_DATASET = fichier-des-personnes-decedees
+export STORAGE_BUCKET=${DATAGOUV_DATASET}
 export DATA_DIR=${PWD}/data
 export BACKUP_DIR = ${PWD}/${GIT_BACKEND}/backup
-export TOOLS = ${PWD}/${GIT_BACKEND}/tools
 export DATA_TAG=${PWD}/data-tag
 export BACKUP_CHECK=${PWD}/backup-check
 # files to sync:
@@ -46,21 +49,21 @@ config: ${GIT_BACKEND}
 	echo "prerequisites installed" > config
 
 datagouv-to-storage: config
-	@${MAKE} -C ${TOOLS} datagouv-to-storage \
-		DATAGOUV_DATASET=${DATAGOUV_DATASET} BUCKET=${DATAGOUV_DATASET}\
+	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} datagouv-to-storage \
+		DATAGOUV_DATASET=${DATAGOUV_DATASET} STORAGE_BUCKET=${STORAGE_BUCKET}\
 		FILES_PATTERN='${FILES_TO_SYNC}' &&\
 	touch datagouv-to-storage
 
 ${DATA_TAG}: config
-	@${MAKE} -C ${TOOLS} catalog-tag CATALOG_TAG=${DATA_TAG}\
-		DATAGOUV_DATASET=${DATAGOUV_DATASET} BUCKET=${DATAGOUV_DATASET}\
+	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} catalog-tag CATALOG_TAG=${DATA_TAG}\
+		DATAGOUV_DATASET=${DATAGOUV_DATASET} STORAGE_BUCKET=${STORAGE_BUCKET}\
 		FILES_PATTERN=${FILES_TO_PROCESS} > /dev/null 2>&1
 
 data-tag: ${DATA_TAG}
 
 ${BACKUP_CHECK}: data-tag
-	@${MAKE} -s -C ${TOOLS} get-catalog CATALOG=${BACKUP_CHECK}\
-		DATAGOUV_DATASET=${DATAGOUV_DATASET} BUCKET=${DATAGOUV_DATASET}\
+	@${MAKE} -s -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} get-catalog CATALOG=${BACKUP_CHECK}\
+		DATAGOUV_DATASET=${DATAGOUV_DATASET} STORAGE_BUCKET=${STORAGE_BUCKET}\
 		FILES_PATTERN=esdata_${DATAPREP_VERSION}_$$(cat ${PWD}/data-tag).tar &&\
 	if [ -s ${BACKUP_CHECK} ]; then\
 		echo backup already exist on remote storage;\
@@ -71,8 +74,8 @@ ${BACKUP_CHECK}: data-tag
 backup-check: ${BACKUP_CHECK}
 
 backup-pull: data-tag
-	@${MAKE} -C ${TOOLS} storage-pull\
-		BUCKET=${DATAGOUV_DATASET}\
+	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} storage-pull\
+		STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
 		FILE=esdata_${DATAPREP_VERSION}_$$(cat data.tag).tar &&\
 	touch backup-pull
 
@@ -161,163 +164,12 @@ backup-push: data-tag backup
 	@if [ ! -f backup-push ];then\
 		ES_BACKUP_FILE_ROOT=esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG});\
 		${MAKE} -C ${GIT_BACKEND} elasticsearch-storage-push\
-			BUCKET=fichier-des-personnes-decedees\
+			STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
 			ES_BACKUP_FILE=$$ES_BACKUP_FILE_ROOT.tar\
 			ES_BACKUP_FILE_SNAR=$$ES_BACKUP_FILE_ROOT.snar &&\
 			touch backup-push &&\
 			SIZE=`cd ${BACKUP_DIR}; du -sh $$ES_BACKUP_FILE_ROOT.tar`;\
 			echo pushed $$SIZE to storage ${DATAGOUV_DATASET};\
-	fi
-
-${SSHKEY}:
-	@echo ssh keygen
-	@ssh-keygen -t rsa -b 4096 -C "${SSHID}" -f ${SSHKEY_PRIVATE} -q -N "${SSH_PASSPHRASE}"
-
-EC2-add-sshkey:
-	@(\
-		((${AWS} ${EC2} describe-key-pairs --key-name ${SSHKEYNAME}  > /dev/null 2>&1) &&\
-			echo "ssh key already deployed to EC2") \
-	|| \
-		((${AWS} ${EC2} import-key-pair --key-name ${SSHKEYNAME} --public-key-material file://${SSHKEY} > /dev/null 2>&1) &&\
-			echo "ssh key deployed with success to EC2") \
-	)
-
-${EC2_SERVER_FILE_ID}:
-	@((${AWS} ${EC2} run-instances --key-name ${SSHKEYNAME} \
-		 	--image-id ${EC2_IMAGE_ID} --instance-type ${EC2_FLAVOR_TYPE} \
-			--tag-specifications "Tags=[{Key=Name,Value=${APP}}]" | jq -r '.Instances[0].InstanceId' > ${EC2_SERVER_FILE_ID} 2>&1 \
-		 ) &&\
-			echo "EC2 instance ordered with success")
-
-EC2-instance-order: EC2-add-sshkey ${EC2_SERVER_FILE_ID}
-
-
-
-EC2-instance-wait-running: EC2-instance-order
-	@EC2_SERVER_ID=$$(cat ${EC2_SERVER_FILE_ID});\
-	timeout=${EC2_TIMEOUT} ; ret=1 ; until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do\
-	  ${AWS} ${EC2} describe-instances --instance-ids $$EC2_SERVER_ID | jq -c '.Reservations[].Instances[].State.Name' | (grep running > /dev/null);\
-	  ret=$$? ; \
-	  if [ "$$ret" -ne "0" ] ; then echo "waiting for EC2 instance $$EC2_SERVER_ID to start $$timeout" ; fi ;\
-	  ((timeout--)); sleep 1 ; \
-    done ; exit $$ret
-
-EC2-instance-wait-ssh: EC2-instance-wait-running
-	@EC2_SERVER_ID=$$(cat ${EC2_SERVER_FILE_ID});\
-	HOST=$$(${AWS} ${EC2} describe-instances --instance-ids $$EC2_SERVER_ID |\
-		jq -r ".Reservations[].Instances[].${EC2_IP}");\
-	(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
-	timeout=${EC2_TIMEOUT} ; ret=1 ; until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do\
-	  ((ssh ${SSHOPTS} ${EC2_SSHUSER}@$$HOST sleep 1) > /dev/null 2>&1);\
-	  ret=$$? ; \
-	  if [ "$$ret" -ne "0" ] ; then echo "waiting for ssh service on EC2 instance $$EC2_SERVER_ID - $$timeout" ; fi ;\
-	  ((timeout--)); sleep 1 ; \
-    done ; exit $$ret
-
-EC2-instance-wait: EC2-instance-wait-ssh
-
-EC2-instance-delete:
-	@if [ -f "${EC2_SERVER_FILE_ID}" ];then\
-		EC2_SERVER_ID=$$(cat ${EC2_SERVER_FILE_ID});\
-		${AWS} ${EC2} terminate-instances --instance-ids $$EC2_SERVER_ID |\
-			jq -r '.TerminatingInstances[0].CurrentState.Name' | sed 's/$$/ EC2 instance/';\
-	fi
-	@rm ${EC2_SERVER_FILE_ID} > /dev/null 2>&1 | true;
-
-OS-add-sshkey: ${SSHKEY}
-	@(\
-		(nova keypair-list | sed 's/|//g' | egrep -v '\-\-\-|Name' | (egrep '^\s*${SSHKEYNAME}\s' > /dev/null) &&\
-		 echo "ssh key already deployed to openstack" ) \
-	  || \
-		(nova keypair-add --pub-key ${SSHKEY} ${SSHKEYNAME} &&\
-		 nova keypair-list | sed 's/|//g' | egrep -v '\-\-\-|Name' | (egrep '^\s*${SSHKEYNAME}\s' > /dev/null) &&\
-		 echo "ssh key deployed with success to openstack" ) \
-	  )
-
-OS-instance-order: OS-add-sshkey
-	@(\
-		(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | (egrep '\s${APP}\s' > /dev/null) && \
-		echo "openstack instance already ordered")\
-	 || \
-		(nova boot --key-name ${SSHKEYNAME} --flavor ${OS_FLAVOR_ID} --image ${OS_IMAGE_ID} ${APP} && \
-	 		echo "openstack intance ordered with success") || echo "openstance instance order failed"\
-	)
-
-OS-instance-wait-running: OS-instance-order
-	@timeout=${OS_TIMEOUT} ; ret=1 ; until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do\
-	  nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | (egrep '\s${APP}\s.*Running' > /dev/null) ;\
-	  ret=$$? ; \
-	  if [ "$$ret" -ne "0" ] ; then echo "waiting for openstack instance to start $$timeout" ; fi ;\
-	  ((timeout--)); sleep 1 ; \
-	done ; exit $$ret
-
-OS-instance-wait-ssh: OS-instance-wait-running
-	@HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
-		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
-		SSHUSER=${OS_SSHUSER};\
-	timeout=${OS_TIMEOUT} ; ret=1 ; until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do\
-	  ((ssh ${SSHOPTS} $$SSHUSER@$$HOST sleep 1) > /dev/null 2>&1);\
-	  ret=$$? ; \
-	  if [ "$$ret" -ne "0" ] ; then echo "waiting for ssh service on openstack instance $$SCW_SERVER_ID - $$timeout" ; fi ;\
-	  ((timeout--)); sleep 1 ; \
-    done ; exit $$ret
-
-OS-instance-wait: OS-instance-wait-ssh
-
-OS-instance-delete:
-	nova delete ${APP}
-
-${SCW_SERVER_FILE_ID}:
-	@curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" \
-		-H "Content-Type: application/json" \
-		-d '{"name": "${APP}", "image": "${SCW_IMAGE_ID}", "commercial_type": "${SCW_FLAVOR}", "organization": "${SCW_ORGANIZATION_ID}"}' | jq -r '.server.id' > ${SCW_SERVER_FILE_ID}
-
-SCW-instance-start: ${SCW_SERVER_FILE_ID}
-	@SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
-		(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .state" | (grep running > /dev/null) && \
-		echo scaleway instance already running)\
-		|| \
-	 	(\
-			(\
-				(curl -s --fail ${SCW_API}/servers/$$SCW_SERVER_ID/action -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" \
-					-H "Content-Type: application/json" -d '{"action": "poweron"}' > /dev/null) &&\
-				echo scaleway instance starting\
-			) || echo scaleway instance still starting\
-		)
-
-SCW-instance-wait-running: SCW-instance-start
-	@SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
-	timeout=${SCW_TIMEOUT} ; ret=1 ; until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do\
-	  curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .state" | (grep running > /dev/null);\
-	  ret=$$? ; \
-	  if [ "$$ret" -ne "0" ] ; then echo "waiting for scaleway instance $$SCW_SERVER_ID to start $$timeout" ; fi ;\
-	  ((timeout--)); sleep 1 ; \
-    done ; exit $$ret
-
-SCW-instance-wait-ssh: SCW-instance-wait-running
-	@SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
-	HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
-	(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
-	timeout=${SCW_TIMEOUT} ; ret=1 ; until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do\
-	  ((ssh ${SSHOPTS} root@$$HOST sleep 1) > /dev/null 2>&1);\
-	  ret=$$? ; \
-	  if [ "$$ret" -ne "0" ] ; then echo "waiting for ssh service on scaleway instance $$SCW_SERVER_ID - $$timeout" ; fi ;\
-	  ((timeout--)); sleep 1 ; \
-    done ; exit $$ret
-
-SCW-instance-wait: SCW-instance-wait-ssh
-
-
-SCW-instance-delete:
-	@if [ -f "${SCW_SERVER_FILE_ID}" ];then\
-		SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
-		((curl -s --fail ${SCW_API}/servers/$$SCW_SERVER_ID/action -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" \
-			-H "Content-Type: application/json" -d '{"action": "terminate"}' > /dev/null) && \
-			echo scaleway server terminating) ||\
-		echo scaleway error while terminating server;\
-		rm ${SCW_SERVER_FILE_ID};\
-	else\
-		echo no scw.id for deletion;\
 	fi
 
 down:
@@ -345,28 +197,21 @@ all: all-step0 all-step1 watch-run all-step2
 
 # launch remote
 
-remote-config: ${CLOUD}-instance-wait
-	@if [ "${CLOUD}" == "OS" ];then\
-		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
-		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
-		SSHUSER=${OS_SSHUSER};\
-	elif [ "${CLOUD}" == "EC2" ];then\
-		EC2_SERVER_ID=$$(cat ${EC2_SERVER_FILE_ID});\
-		HOST=$$(${AWS} ${EC2} describe-instances --instance-ids $$EC2_SERVER_ID |\
-				jq -r ".Reservations[].Instances[].${EC2_IP}");\
-		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
-		SSHUSER=${EC2_SSHUSER};\
-	else\
-		SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
-		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
-		(ssh-keygen -R $$HOST > /dev/null 2>&1) || true;\
-		SSHUSER=${SCW_SSHUSER};\
-		ssh ${SSHOPTS} root@$$HOST apt-get install -o Dpkg::Options::="--force-confold" -yq sudo;\
-	fi;\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST git clone ${GITROOT}/${APP};\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST sudo apt-get update -y;\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST sudo apt-get install -y make;\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST ${MAKE} -C ${APP} all-step0 ${MAKEOVERRIDES};
+remote-config: config data-tag
+	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-config\
+				APP=${APP} APP_VERSION=${DATAPREP_VERSION} CLOUD_TAG=data:$$(cat ${DATA_TAG})-prep:${DATAPREP_VERSION}\
+				GIT_BRANCH=${GIT_BRANCH} ${MAKEOVERRIDES}
+
+remote-deploy:
+	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-deploy\
+		APP=${APP} APP_VERSION=${DATAPREP_VERSION} GIT_BRANCH=${GIT_BRANCH} \
+		${MAKEOVERRIDES}
+
+remote-actions:
+	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-actions\
+		APP=${APP} APP_VERSION=${DATAPREP_VERSION} GIT_BRANCH=${GIT_BRANCH} \
+		ACTIONS="all-step1 all-step2"\
+		${MAKEOVERRIDES}
 
 remote-step1:
 	@if [ "${CLOUD}" == "OS" ];then\

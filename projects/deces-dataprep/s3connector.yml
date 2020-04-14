@@ -4,6 +4,6 @@ connectors:
     chunk: 10000
     endpoint_url: https://s3.fr-par.scw.cloud
     region_name: fr-par
-    bucket: !ENV ${S3_BUCKET}
-    aws_access_key_id: !ENV ${aws_access_key_id}
-    aws_secret_access_key: !ENV ${aws_secret_access_key}
+    bucket: !ENV ${STORAGE_BUCKET}
+    aws_access_key_id: !ENV ${STORAGE_ACCESS_KEY}
+    aws_secret_access_key: !ENV ${STORAGE_SECRET_KEY}

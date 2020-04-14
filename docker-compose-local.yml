@@ -3,7 +3,6 @@ version: '3.4'
 services:
   backend:
     environment:
-      - S3_BUCKET
       - FILES_TO_PROCESS
       - RECIPE_THREADS
       - RECIPE_QUEUE
