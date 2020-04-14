@@ -13,6 +13,7 @@ export MAKEBIN = $(shell which make)
 export MAKE = ${MAKEBIN} --no-print-directory -s
 export ES_NODES=1
 export ES_MEM=1024m
+export ES_PRELOAD=["nvd", "dvd"]
 export CHUNK_SIZE=10000
 export RECIPE = deces_dataprep
 export RECIPE_THREADS = 4
@@ -110,7 +111,8 @@ recipe-run: data-tag
 		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch ES_NODES=${ES_NODES} ES_MEM=${ES_MEM} ${MAKEOVERRIDES};\
 		echo running recipe on full data;\
 		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} recipe-run \
-			RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} ES_THREADS=${ES_THREADS} \
+			RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE}\
+			ES_PRELOAD='${ES_PRELOAD}' ES_THREADS=${ES_THREADS} \
 			STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
 			${MAKEOVERRIDES} \
 			APP=backend APP_VERSION=$(shell cd ${APP_PATH}/${GIT_BACKEND} && make version | awk '{print $$NF}') \
