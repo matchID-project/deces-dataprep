@@ -130,11 +130,6 @@ full: full-check recipe-run
 backend-clean-logs:
 	rm -f ${PWD}/${GIT_BACKEND}/log/*${RECIPE}*log
 
-ls:
-	@echo iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-	@ls | grep watch-run || true
-	@echo yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
-
 watch-run:
 	@timeout=${TIMEOUT} ; ret=1 ; \
 		until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do \
@@ -218,50 +213,26 @@ remote-deploy:
 		STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
 		${MAKEOVERRIDES}
 
-remote-actions:
+remote-step1:
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-actions\
 		APP=${APP} APP_VERSION=${DATAPREP_VERSION} GIT_BRANCH=${GIT_BRANCH} \
-		ACTIONS="all-step1 all-step2"\
+		ACTIONS="all-step1"\
 		STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
 		${MAKEOVERRIDES}
 
-remote-step1:
-	@if [ "${CLOUD}" == "OS" ];then\
-		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
-		SSHUSER=${OS_SSHUSER};\
-	elif [ "${CLOUD}" == "EC2" ];then\
-		EC2_SERVER_ID=$$(cat ${EC2_SERVER_FILE_ID});\
-		HOST=$$(${AWS} ${EC2} describe-instances --instance-ids $$EC2_SERVER_ID |\
-				jq -r ".Reservations[].Instances[].${EC2_IP}");\
-		SSHUSER=${EC2_SSHUSER};\
-	else\
-		SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
-		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
-		SSHUSER=${SCW_SSHUSER};\
-	fi;\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST 'echo "export FILES_TO_PROCESS=${FILES_TO_PROCESS}" > ${APP}/artifacts';\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST mkdir -p .aws;\
-		cat ${S3_CONFIG} | ${REMOTE_HOST} ssh ${SSHOPTS} $$SSHUSER@$$HOST "cat > .aws/config";\
-		echo -e "[default]\naws_access_key_id=${aws_access_key_id}\naws_secret_access_key=${aws_secret_access_key}\n" |\
-			ssh ${SSHOPTS} $$SSHUSER@$$HOST 'cat > .aws/credentials';\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST ${MAKE} -C ${APP} all-step1 aws_access_key_id=${aws_access_key_id} aws_secret_access_key=${aws_secret_access_key} ${MAKEOVERRIDES};
-
 remote-watch:
-	@if [ "${CLOUD}" == "OS" ];then\
-		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
-		SSHUSER=${OS_SSHUSER};\
-	elif [ "${CLOUD}" == "EC2" ];then\
-		EC2_SERVER_ID=$$(cat ${EC2_SERVER_FILE_ID});\
-		HOST=$$(${AWS} ${EC2} describe-instances --instance-ids $$EC2_SERVER_ID |\
-				jq -r ".Reservations[].Instances[].${EC2_IP}");\
-		SSHUSER=${EC2_SSHUSER};\
-	else\
-		SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
-		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
-		SSHUSER=${SCW_SSHUSER};\
-	fi;\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} watch-run ${MAKEOVERRIDES};
+	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-actions\
+		APP=${APP} APP_VERSION=${DATAPREP_VERSION} GIT_BRANCH=${GIT_BRANCH} \
+		ACTIONS="watch-run"\
+		STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
+		${MAKEOVERRIDES}
 
+remote-step2:
+	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-actions\
+		APP=${APP} APP_VERSION=${DATAPREP_VERSION} GIT_BRANCH=${GIT_BRANCH} \
+		ACTIONS="all-step2"\
+		STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
+		${MAKEOVERRIDES}
 
 remote-clean:
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-clean\
@@ -270,6 +241,6 @@ remote-clean:
 
 remote-all: full-check
 	@if [ ! -f "no-remote" ];then\
-		${MAKE} remote-config remote-step1 remote-watch remote-step2 remote-clean;\
+		${MAKE} remote-config remote-deploy remote-step1 remote-watch remote-step2 remote-clean;\
 	fi
 
