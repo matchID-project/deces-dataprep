@@ -11,6 +11,8 @@ export GIT_BACKEND = backend
 export GIT_TOOLS = tools
 export MAKEBIN = $(shell which make)
 export MAKE = ${MAKEBIN} --no-print-directory -s
+export ES_NODES=1
+export ES_MEM=1024m
 export RECIPE = deces_dataprep
 export RECIPE_THREADS = 4
 export RECIPE_QUEUE = 1
@@ -98,15 +100,20 @@ dev-stop:
 	fi
 
 up:
-	@${MAKE} -C ${GIT_BACKEND} elasticsearch backend && echo matchID backend services started
+	@unset APP;unset APP_VERSION;\
+	${MAKE} -C ${GIT_BACKEND} elasticsearch backend && echo matchID backend services started
 
 recipe-run: data-tag
 	@if [ ! -f recipe-run ];then\
-		${MAKE} -C ${GIT_BACKEND} elasticsearch ${MAKEOVERRIDES};\
+		unset APP;unset APP_VERSION;\
+		${MAKE} -C ${GIT_BACKEND} elasticsearch ES_NODES=${ES_NODES} ES_MEM=${ES_MEM} ${MAKEOVERRIDES};\
 		echo running recipe on full data;\
-		${MAKE} -C ${GIT_BACKEND} recipe-run RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} &&\
-			touch recipe-run s3-pull &&\
-			(echo esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}).tar > elasticsearch-restore);\
+		${MAKE} -C ${GIT_BACKEND} recipe-run \
+			RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} \
+			STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
+			${MAKEOVERRIDES} &&\
+		touch recipe-run s3-pull &&\
+		(echo esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}).tar > elasticsearch-restore);\
 	fi
 
 full-check: datagouv-to-storage backup-check
@@ -200,18 +207,21 @@ all: all-step0 all-step1 watch-run all-step2
 
 remote-config: config data-tag
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-config\
-				APP=${APP} APP_VERSION=${DATAPREP_VERSION} CLOUD_TAG=data:$$(cat ${DATA_TAG})-prep:${DATAPREP_VERSION}\
-				GIT_BRANCH=${GIT_BRANCH} ${MAKEOVERRIDES}
+		APP=${APP} APP_VERSION=${DATAPREP_VERSION} CLOUD_TAG=data:$$(cat ${DATA_TAG})-prep:${DATAPREP_VERSION}\
+		STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
+		GIT_BRANCH=${GIT_BRANCH} ${MAKEOVERRIDES}
 
 remote-deploy:
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-deploy\
 		APP=${APP} APP_VERSION=${DATAPREP_VERSION} GIT_BRANCH=${GIT_BRANCH} \
+		STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
 		${MAKEOVERRIDES}
 
 remote-actions:
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-actions\
 		APP=${APP} APP_VERSION=${DATAPREP_VERSION} GIT_BRANCH=${GIT_BRANCH} \
 		ACTIONS="all-step1 all-step2"\
+		STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
 		${MAKEOVERRIDES}
 
 remote-step1:
