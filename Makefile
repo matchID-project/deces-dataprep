@@ -47,7 +47,7 @@ include ./artifacts
 
 config: ${GIT_BACKEND}
 	@echo checking system prerequisites
-	@${MAKE} -C ${GIT_BACKEND} config && \
+	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND} config && \
 	echo "prerequisites installed" > config
 
 datagouv-to-storage: config
@@ -91,27 +91,28 @@ ${GIT_BACKEND}:
 	@echo "export S3_BUCKET=${DATAGOUV_DATASET}" >> ${GIT_BACKEND}/artifacts
 
 dev: config
-	@${MAKE} -C ${GIT_BACKEND} elasticsearch backend frontend &&\
+	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch backend frontend &&\
 		echo matchID started, go to http://localhost:8081
 
 dev-stop:
 	@if [ -f config ]; then\
-		${MAKE} -C ${GIT_BACKEND} frontend-stop backend-stop elasticsearch-stop;\
+		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} frontend-stop backend-stop elasticsearch-stop;\
 	fi
 
 up:
 	@unset APP;unset APP_VERSION;\
-	${MAKE} -C ${GIT_BACKEND} elasticsearch backend && echo matchID backend services started
+	${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch backend && echo matchID backend services started
 
 recipe-run: data-tag
 	@if [ ! -f recipe-run ];then\
-		unset APP;unset APP_VERSION;\
-		${MAKE} -C ${GIT_BACKEND} elasticsearch ES_NODES=${ES_NODES} ES_MEM=${ES_MEM} ${MAKEOVERRIDES};\
+		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch ES_NODES=${ES_NODES} ES_MEM=${ES_MEM} ${MAKEOVERRIDES};\
 		echo running recipe on full data;\
-		${MAKE} -C ${GIT_BACKEND} recipe-run \
+		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} recipe-run \
 			RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} \
 			STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
-			${MAKEOVERRIDES} &&\
+			${MAKEOVERRIDES} \
+			APP=backend APP_VERSION=$(shell cd ${APP_PATH}/${GIT_BACKEND} && make version | awk '{print $$NF}') \
+			&&\
 		touch recipe-run s3-pull &&\
 		(echo esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}).tar > elasticsearch-restore);\
 	fi
@@ -149,7 +150,7 @@ watch-run:
 
 elasticsearch-restore: backup-pull
 	@if [ ! -f "elasticsearch-restore" ];then\
-		${MAKE} -C ${GIT_BACKEND} elasticsearch-restore ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}).tar \
+		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch-restore ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}).tar \
 			&& (echo esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}).tar > elasticsearch-restore);\
 	fi
 
@@ -161,7 +162,7 @@ backup: data-tag
 		ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}).tar;\
 		ES_BACKUP_FILE_SNAR=esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}).snar;\
 		if [ ! -f "${BACKUP_DIR}/$$ES_BACKUP_FILE" ];then\
-			${MAKE} -C ${GIT_BACKEND} elasticsearch-backup \
+			${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch-backup \
 				ES_BACKUP_FILE=$$ES_BACKUP_FILE\
 				ES_BACKUP_FILE_SNAR=$$ES_BACKUP_FILE_SNAR;\
 		fi;\
@@ -171,7 +172,7 @@ backup: data-tag
 backup-push: data-tag backup
 	@if [ ! -f backup-push ];then\
 		ES_BACKUP_FILE_ROOT=esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG});\
-		${MAKE} -C ${GIT_BACKEND} elasticsearch-storage-push\
+		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch-storage-push\
 			STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
 			ES_BACKUP_FILE=$$ES_BACKUP_FILE_ROOT.tar\
 			ES_BACKUP_FILE_SNAR=$$ES_BACKUP_FILE_ROOT.snar &&\
@@ -182,7 +183,7 @@ backup-push: data-tag backup
 
 down:
 	@if [ -f config ]; then\
-		(${MAKE} -C ${GIT_BACKEND} backend-stop elasticsearch-stop frontend-stop || true);\
+		(${MAKE} -C ${APP_PATH}/${GIT_BACKEND} backend-stop elasticsearch-stop frontend-stop || true);\
 	fi
 
 clean: down
@@ -261,24 +262,11 @@ remote-watch:
 	fi;\
 		ssh ${SSHOPTS} $$SSHUSER@$$HOST make -C ${APP} watch-run ${MAKEOVERRIDES};
 
-remote-step2: remote-watch
-	@if [ "${CLOUD}" == "OS" ];then\
-		HOST=$$(nova list | sed 's/|//g' | egrep -v '\-\-\-|Name' | egrep '\s${APP}\s.*Running' | sed 's/.*Ext-Net=//;s/,.*//') ;\
-		SSHUSER=${OS_SSHUSER};\
-	elif [ "${CLOUD}" == "EC2" ];then\
-		EC2_SERVER_ID=$$(cat ${EC2_SERVER_FILE_ID});\
-		HOST=$$(${AWS} ${EC2} describe-instances --instance-ids $$EC2_SERVER_ID |\
-				jq -r ".Reservations[].Instances[].${EC2_IP}");\
-		SSHUSER=${EC2_SSHUSER};\
-	else\
-		SCW_SERVER_ID=$$(cat ${SCW_SERVER_FILE_ID});\
-		HOST=$$(curl -s ${SCW_API}/servers -H "X-Auth-Token: ${SCW_SECRET_TOKEN}" | jq -cr  ".servers[] | select (.id == \"$$SCW_SERVER_ID\") | .${SCW_IP}" ) ;\
-		SSHUSER=${SCW_SSHUSER};\
-	fi;\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST ${MAKE} -C ${APP} all-step2 aws_access_key_id=${aws_access_key_id} aws_secret_access_key=${aws_secret_access_key} ${MAKEOVERRIDES};\
-		ssh ${SSHOPTS} $$SSHUSER@$$HOST rm .aws/credentials;
 
-remote-clean: ${CLOUD}-instance-delete
+remote-clean:
+	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-clean\
+		APP=${APP} APP_VERSION=${DATAPREP_VERSION} GIT_BRANCH=${GIT_BRANCH} \
+		${MAKEOVERRIDES}
 
 remote-all: full-check
 	@if [ ! -f "no-remote" ];then\
