@@ -89,11 +89,12 @@ ${GIT_BACKEND}:
 	@echo "export S3_BUCKET=${DATAGOUV_DATASET}" >> ${GIT_BACKEND}/artifacts
 
 dev: config
-	@${MAKE} -C ${GIT_BACKEND} elasticsearch backend frontend && matchID started, go to http://localhost:8081
+	@${MAKE} -C ${GIT_BACKEND} elasticsearch backend frontend &&\
+		echo matchID started, go to http://localhost:8081
 
 dev-stop:
-	if [ -f config ]; then\
-		${MAKE} -C ${GIT_BACKEND} frontend-stop backend-stop elasticsearch-stop;
+	@if [ -f config ]; then\
+		${MAKE} -C ${GIT_BACKEND} frontend-stop backend-stop elasticsearch-stop;\
 	fi
 
 up:
