@@ -26,7 +26,7 @@ before_script:
   - uname -a
   - type -a docker-compose && docker-compose version
   - docker version
-  - if [[ ( "$TRAVIS_PULL_REQUEST" = "false" ) && ( ( "$TRAVIS_BRANCH" == "dev" ) || ( "$TRAVIS_BRANCH" == "master" ) ) ]]; then
+  - if [[ ( "$TRAVIS_PULL_REQUEST" == "false" ) && ( ( "$TRAVIS_BRANCH" == "dev" ) || ( "$TRAVIS_BRANCH" == "master" ) ) ]]; then
       echo "$SSHENC" | base64 -d | gpg -d --passphrase $SSHPWD --batch > /tmp/id_rsa_matchID;
       eval "$(ssh-agent -s)";
       chmod 600 /tmp/id_rsa_matchID;
@@ -39,22 +39,23 @@ before_script:
 script:
   - git fetch && git describe --tags
   - make config
-  - if [[ ( "$TRAVIS_PULL_REQUEST" = "false" ) ]]; then
+  - if [[ ( "$TRAVIS_PULL_REQUEST" == "false" ) ]]; then
       make all FILES_TO_PROCESS=deces-2020-m01.txt.gz || travis_terminate 1;
     fi
-  - if [[ ( "$TRAVIS_PULL_REQUEST" = "false" ) && ( "$TRAVIS_BRANCH" == "dev" ) ]]; then
-      make remote-all
-        GIT_BRANCH="$TRAVIS_BRANCH"
-        FILES_TO_PROCESS='deces-(2019|2020-m01).txt.gz'
-        CHUNK_SIZE=50000 ES_THREADS=10 RECIPE_THREADS=16 ES_MEM=24000m RECIPE_QUEUE=16 SCW_FLAVOR=GP1-M;
+  - if [[ ( "$TRAVIS_PULL_REQUEST" == "false" ) && ( "$TRAVIS_BRANCH" == "dev" ) ]]; then
+      export ;
+      make clean remote-all
+          GIT_BRANCH="$TRAVIS_BRANCH"
+          FILES_TO_PROCESS=deces-202?0?-?m?0?1?1?9?.txt.gz
+          CHUNK_SIZE=50000 ES_THREADS=10 RECIPE_THREADS=16 ES_MEM=24000m RECIPE_QUEUE=16 SCW_FLAVOR=GP1-M;
     fi
-  - if [[ ( "$TRAVIS_PULL_REQUEST" = "false" ) && ( "$TRAVIS_BRANCH" == "master" ) ]]; then
-      make remote-all
+  - if [[ ( "$TRAVIS_PULL_REQUEST" == "false" ) && ( "$TRAVIS_BRANCH" == "master" ) ]]; then
+      make clean remote-all
         GIT_BRANCH="$TRAVIS_BRANCH"
         CHUNK_SIZE=50000 ES_THREADS=20 RECIPE_THREADS=40 ES_MEM=48000m RECIPE_QUEUE=40 SCW_FLAVOR=GP1-L;
     fi
 
 after_failure:
-  - if [[ ( "$TRAVIS_PULL_REQUEST" = "false" ) && (( "$TRAVIS_BRANCH" == "dev" ) || ( "$TRAVIS_BRANCH" == "master" ))]]; then
+  - if [[ ( "$TRAVIS_PULL_REQUEST" == "false" ) && (( "$TRAVIS_BRANCH" == "dev" ) || ( "$TRAVIS_BRANCH" == "master" ))]]; then
       make remote-clean;
     fi
