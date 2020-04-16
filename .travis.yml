@@ -1,0 +1,60 @@
+dist: trusty
+sudo: required
+
+language: minimal
+
+services:
+  - docker
+
+env:
+  - DOCKER_COMPOSE_VERSION=1.19.0
+
+addons:
+  apt:
+    packages:
+      - docker-ce
+
+before_install:
+  - sudo rm -rf /usr/local/bin/docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+  - chmod +x docker-compose
+  - sudo mv docker-compose /usr/local/bin/
+  - sudo apt-get -q update
+  - sudo apt-get install -qy make apt-transport-https ca-certificates curl software-properties-common jq
+
+before_script:
+  - uname -a
+  - type -a docker-compose && docker-compose version
+  - docker version
+  - if [[ ( "$TRAVIS_PULL_REQUEST" = "false" ) && ( ( "$TRAVIS_BRANCH" == "dev" ) || ( "$TRAVIS_BRANCH" == "master" ) ) ]]; then
+      echo "$SSHENC" | base64 -d | gpg -d --passphrase $SSHPWD --batch > /tmp/id_rsa_matchID;
+      eval "$(ssh-agent -s)";
+      chmod 600 /tmp/id_rsa_matchID;
+      ssh-add /tmp/id_rsa_matchID;
+      echo "Host * !""$BASTION_HOST" > ~/.ssh/config;
+      echo "   ProxyCommand ssh -o StrictHostKeyChecking=no $BASTION_USER@$BASTION_HOST nc %h %p" >> ~/.ssh/config;
+      cat ~/.ssh/config;
+    fi
+
+script:
+  - git fetch && git describe --tags
+  - make config
+  - if [[ ( "$TRAVIS_PULL_REQUEST" = "false" ) ]]; then
+      make all FILES_TO_PROCESS=deces-2020-m01.txt.gz || travis_terminate 1;
+    fi
+  - if [[ ( "$TRAVIS_PULL_REQUEST" = "false" ) && ( "$TRAVIS_BRANCH" == "dev" ) ]]; then
+      make remote-all
+        GIT_BRANCH="$TRAVIS_BRANCH"
+        FILES_TO_PROCESS='deces-(2019|2020-m01).txt.gz'
+        CHUNK_SIZE=50000 ES_THREADS=10 RECIPE_THREADS=16 ES_MEM=24000m RECIPE_QUEUE=16 SCW_FLAVOR=GP1-M;
+    fi
+  - if [[ ( "$TRAVIS_PULL_REQUEST" = "false" ) && ( "$TRAVIS_BRANCH" == "master" ) ]]; then
+      make remote-all
+        GIT_BRANCH="$TRAVIS_BRANCH"
+        CHUNK_SIZE=50000 ES_THREADS=20 RECIPE_THREADS=40 ES_MEM=48000m RECIPE_QUEUE=40 SCW_FLAVOR=GP1-L;
+    fi
+
+after_failure:
+  - if [[ ( "$TRAVIS_PULL_REQUEST" = "false" ) && (( "$TRAVIS_BRANCH" == "dev" ) || ( "$TRAVIS_BRANCH" == "master" ))]]; then
+      make remote-clean;
+    fi
