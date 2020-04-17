@@ -13,6 +13,8 @@ export MAKEBIN = $(shell which make)
 export MAKE = ${MAKEBIN} --no-print-directory -s
 export ES_NODES=1
 export ES_MEM=1024m
+export ERR_MAX=20
+export ES_PRELOAD=["nvd", "dvd"]
 export CHUNK_SIZE=10000
 export RECIPE = deces_dataprep
 export RECIPE_THREADS = 4
@@ -110,7 +112,8 @@ recipe-run: data-tag
 		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch ES_NODES=${ES_NODES} ES_MEM=${ES_MEM} ${MAKEOVERRIDES};\
 		echo running recipe on full data;\
 		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} recipe-run \
-			RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} ES_THREADS=${ES_THREADS} \
+			RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE}\
+			ES_PRELOAD='${ES_PRELOAD}' ES_THREADS=${ES_THREADS} \
 			STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
 			${MAKEOVERRIDES} \
 			APP=backend APP_VERSION=$(shell cd ${APP_PATH}/${GIT_BACKEND} && make version | awk '{print $$NF}') \
@@ -133,17 +136,19 @@ backend-clean-logs:
 	rm -f ${PWD}/${GIT_BACKEND}/log/*${RECIPE}*log
 
 watch-run:
-	@timeout=${TIMEOUT} ; ret=1 ; \
+	@LOG_FILE=$(shell find ${GIT_BACKEND}/log/ -iname '*${RECIPE}*' | sort | tail -1);\
+	timeout=${TIMEOUT} ; ret=1 ; \
 		until [ "$$timeout" -le 0 -o "$$ret" -eq "0"  ] ; do \
-			f=$$(find ${GIT_BACKEND}/log/ -iname '*${RECIPE}*' | sort | tail -1);\
-			((tail $$f | grep "end of all" > /dev/null) || exit 1) ; \
+			((tail $$LOG_FILE | grep "end of all" > /dev/null) || exit 1) ; \
 			ret=$$? ; \
 			if [ "$$ret" -ne "0" ] ; then \
-				echo "waiting for end of job $$timeout" ; \
-				grep wrote $$f |awk 'BEGIN{s=0}{t=$$4;s+=$$12}END{print t " wrote " s}' ;\
+				grep inserted $$LOG_FILE |awk 'BEGIN{s=0}{t=$$4;s+=$$14}END{printf("\rwrote %d in %s",s,t)}' ;\
+				grep -i Ooops $$LOG_FILE | wc -l | awk '($$1>${ERR_MAX}){exit 1}' || exit 0;\
 				sleep 10 ;\
-			fi ; ((timeout--)); done ; exit $$ret
-	@find ${GIT_BACKEND}/log/ -iname '*dataprep_personnes-dedecees_search*' | sort | tail -1 | xargs tail
+			fi ; ((timeout--)); done ;
+	@LOG_FILE=$(shell find ${GIT_BACKEND}/log/ -iname '*${RECIPE}*' | sort | tail -1);\
+	((egrep -i 'end : run|Ooops' $$LOG_FILE | tail -5) && exit 1) || \
+	egrep 'end : run.*successfully' $$LOG_FILE
 
 elasticsearch-restore: backup-pull
 	@if [ ! -f "elasticsearch-restore" ];then\
