@@ -52,7 +52,7 @@ script:
   - if [[ ( "$TRAVIS_PULL_REQUEST" == "false" ) && ( "$TRAVIS_BRANCH" == "master" ) ]]; then
       make clean remote-all
         GIT_BRANCH="$TRAVIS_BRANCH"
-        CHUNK_SIZE=50000 ES_THREADS=20 RECIPE_THREADS=40 ES_MEM=48000m RECIPE_QUEUE=40 SCW_FLAVOR=GP1-L;
+        CHUNK_SIZE=50000 ES_THREADS=30 RECIPE_THREADS=48 ES_MEM=48000m RECIPE_QUEUE=50 SCW_FLAVOR=GP1-L;
     fi
 
 after_failure:
