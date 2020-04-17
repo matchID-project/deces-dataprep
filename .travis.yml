@@ -45,7 +45,7 @@ script:
   - if [[ ( "$TRAVIS_PULL_REQUEST" == "false" ) && ( "$TRAVIS_BRANCH" == "dev" ) ]]; then
       make clean remote-all
         GIT_BRANCH="$TRAVIS_BRANCH"
-        FILES_TO_PROCESS='deces-(2019|2020-m01).txt.gz'
+        FILES_TO_PROCESS='deces-2019.txt.gz|2020-m01.txt.gz'
         CHUNK_SIZE=50000 ES_THREADS=10 RECIPE_THREADS=16 ES_MEM=24000m RECIPE_QUEUE=16 SCW_FLAVOR=GP1-M;
     fi
   - if [[ ( "$TRAVIS_PULL_REQUEST" == "false" ) && ( "$TRAVIS_BRANCH" == "master" ) ]]; then
