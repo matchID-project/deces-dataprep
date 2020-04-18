@@ -67,6 +67,8 @@ datasets:
             fields:
               raw:
                 type: keyword
+          GEOPOINT_NAISSANCE:
+            type: geo_point
           DATE_DECES:
             type: text
             index_prefixes:
@@ -89,3 +91,5 @@ datasets:
             fields:
               raw:
                 type: keyword
+          GEOPOINT_DECES:
+            type: geo_point

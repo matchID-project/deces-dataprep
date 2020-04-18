@@ -153,6 +153,7 @@ recipes:
             COMMUNE_NAISSANCE_REF: name
             COMMUNE_NAISSANCE_ALTER: newest_name
             DEPARTEMENT_NAISSANCE: dep_code
+            GEOPOINT_NAISSANCE: geopoint_2d
       - exec:
         - df['COMMUNE_NAISSANCE'] = df['COMMUNE_NAISSANCE'].astype('str').str.title()
       - replace:
@@ -254,6 +255,7 @@ recipes:
             COMMUNE_DECES: name
             COMMUNE_DECES_ALTER: newest_name
             DEPARTEMENT_DECES: dep_code
+            GEOPOINT_DECES: geopoint_2d
       - exec:
           - df['COMMUNE_DECES'] = np.where(
                 df['COMMUNE_DECES'] == df['COMMUNE_DECES_ALTER'],
