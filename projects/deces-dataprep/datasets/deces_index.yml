@@ -51,7 +51,7 @@ datasets:
             type: text
             index_prefixes:
               min_chars: 4
-              max_chars: 4
+              max_chars: 6
             fields:
               raw:
                 type: keyword
@@ -71,7 +71,7 @@ datasets:
             type: text
             index_prefixes:
               min_chars: 4
-              max_chars: 4
+              max_chars: 6
             fields:
               raw:
                 type: keyword
