@@ -70,7 +70,18 @@ recipes:
             - (04|06|09|11)/31\$: \1/30
             - /00: /01
             - /: ''
-          
+      - map:
+         DATE_DECES_DT: DATE_DECES
+         DATE_NAISSANCE_DT: DATE_NAISSANCE
+      - parsedate:
+         select: DATE.*DT
+         format: "%Y%m%d"
+      - exec: >
+         df['AGE_DECES'] = np.where(df['DATE_DECES'] > df['DATE_NAISSANCE'],
+           (df['DATE_DECES_DT'] - df['DATE_NAISSANCE_DT']).astype('<m8[Y]'),
+           None)
+      - delete:
+          select: DATE.*DT
       #pays naissance
       - map:
           PAYS_NAISSANCE_CODE: CODE_INSEE_NAISSANCE
@@ -142,6 +153,7 @@ recipes:
             COMMUNE_NAISSANCE_REF: name
             COMMUNE_NAISSANCE_ALTER: newest_name
             DEPARTEMENT_NAISSANCE: dep_code
+            GEOPOINT_NAISSANCE: geopoint_2d
       - exec:
         - df['COMMUNE_NAISSANCE'] = df['COMMUNE_NAISSANCE'].astype('str').str.title()
       - replace:
@@ -243,6 +255,7 @@ recipes:
             COMMUNE_DECES: name
             COMMUNE_DECES_ALTER: newest_name
             DEPARTEMENT_DECES: dep_code
+            GEOPOINT_DECES: geopoint_2d
       - exec:
           - df['COMMUNE_DECES'] = np.where(
                 df['COMMUNE_DECES'] == df['COMMUNE_DECES_ALTER'],

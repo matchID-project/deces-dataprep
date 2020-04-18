@@ -51,7 +51,7 @@ datasets:
             type: text
             index_prefixes:
               min_chars: 4
-              max_chars: 4
+              max_chars: 6
             fields:
               raw:
                 type: keyword
@@ -67,14 +67,18 @@ datasets:
             fields:
               raw:
                 type: keyword
+          GEOPOINT_NAISSANCE:
+            type: geo_point
           DATE_DECES:
             type: text
             index_prefixes:
               min_chars: 4
-              max_chars: 4
+              max_chars: 6
             fields:
               raw:
                 type: keyword
+          AGE_DECES:
+            type: short
           COMMUNE_DECES:
             type: text
             fields:
@@ -87,3 +91,5 @@ datasets:
             fields:
               raw:
                 type: keyword
+          GEOPOINT_DECES:
+            type: geo_point

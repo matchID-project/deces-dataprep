@@ -190,7 +190,7 @@ down:
 
 clean: down
 	@sudo rm -rf ${GIT_BACKEND} frontend ${DATA_DIR} data-tag config \
-		recipe-run backup-check elasticsearch-restore watch-run full\
+		recipe-run backup-check datagouv-to-storage elasticsearch-restore watch-run full\
 		backup backup-pull backup-push no-remote
 
 # launch all locally
