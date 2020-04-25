@@ -47,6 +47,8 @@ datasets:
             fields:
               raw:
                 type: keyword
+          SEXE:
+            type: keyword
           DATE_NAISSANCE:
             type: text
             index_prefixes:
