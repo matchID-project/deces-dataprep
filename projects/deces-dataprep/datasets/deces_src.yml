@@ -2,7 +2,7 @@ datasets:
   deces_src:
     # death people reference (fake - test sample)
     # fixed with format with no header
-    connector: s3
+    connector: !ENV ${DATAGOUV_CONNECTOR}
     table:
       regex: !ENV ${FILES_TO_PROCESS}
     compression: gzip

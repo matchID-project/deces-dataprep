@@ -23,6 +23,7 @@ export ES_THREADS = 2
 export TIMEOUT = 2520
 export DATAGOUV_API = https://www.data.gouv.fr/api/1/datasets
 export DATAGOUV_DATASET = fichier-des-personnes-decedees
+export DATAGOUV_CONNECTOR = s3
 export STORAGE_BUCKET=${DATAGOUV_DATASET}
 export DATA_DIR=${PWD}/data
 export BACKUP_DIR = ${PWD}/${GIT_BACKEND}/backup
@@ -60,6 +61,15 @@ datagouv-to-storage: config
 		FILES_PATTERN='${FILES_TO_SYNC}' &&\
 	touch datagouv-to-storage
 
+datagouv-to-s3: datagouv-to-storage
+	touch datagouv-to-s3
+
+datagouv-to-upload:
+	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} datagouv-get-files \
+		DATAGOUV_DATASET=${DATAGOUV_DATASET} DATA_DIR=${APP_PATH}/${GIT_BACKEND}/upload\
+		FILES_PATTERN='${FILES_TO_SYNC}' &&\
+	touch datagouv-to-upload
+
 ${DATA_TAG}: config
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} catalog-tag CATALOG_TAG=${DATA_TAG}\
 		DATAGOUV_DATASET=${DATAGOUV_DATASET} STORAGE_BUCKET=${STORAGE_BUCKET}\
@@ -78,6 +88,12 @@ ${BACKUP_CHECK}: data-tag
 	fi
 
 backup-check: ${BACKUP_CHECK}
+
+check-s3: backup-check
+	touch check-s3
+
+check-upload:
+	@touch check-upload
 
 backup-pull: data-tag
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} storage-pull\
@@ -122,7 +138,7 @@ recipe-run: data-tag
 		(echo esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}).tar > elasticsearch-restore);\
 	fi
 
-full-check: datagouv-to-storage backup-check
+full-check: datagouv-to-${DATAGOUV_CONNECTOR} check-${DATAGOUV_CONNECTOR}
 	@if [ -s backup-check ]; then\
 		echo recipe has already been runned on full and saved on remote storage;\
 		touch recipe-run watch-run backup backup-push no-remote;\
@@ -190,7 +206,7 @@ down:
 
 clean: down
 	@sudo rm -rf ${GIT_BACKEND} frontend ${DATA_DIR} data-tag config \
-		recipe-run backup-check datagouv-to-storage elasticsearch-restore watch-run full\
+		recipe-run backup-check datagouv-to-* check-* elasticsearch-restore watch-run full\
 		backup backup-pull backup-push no-remote
 
 # launch all locally
