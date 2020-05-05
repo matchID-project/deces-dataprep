@@ -4,6 +4,7 @@ services:
   backend:
     environment:
       - FILES_TO_PROCESS
+      - DATAGOUV_CONNECTOR
       - ES_PRELOAD
       - CHUNK_SIZE
       - RECIPE_THREADS
