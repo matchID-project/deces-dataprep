@@ -13,11 +13,20 @@ datasets:
         analysis:
           analyzer:
             autocomplete_analyzer:
-              tokenizer: "edge_tokenizer2"
+              tokenizer: edge_tokenizer2
+              filter: ["asciifolding", "lowercase"]
+              tokenizer: "keyword"
+            norm:
+              tokenizer: standard
+              filter: ["asciifolding", "lowercase"]
+          normalizer:
+            norm:
+              type: custom
+              char_filter: []
               filter: ["asciifolding", "lowercase"]
           tokenizer:
             edge_tokenizer2:
-              type: "edge_ngram"
+              type: edge_ngram
               min_gram: 2
               max_gram: 10
               token_chars: ["letter", "digit"]
@@ -29,24 +38,30 @@ datasets:
           PRENOMS_NOM:
             type: text
             analyzer: autocomplete_analyzer
-            search_analyzer: standard
+            search_analyzer: norm
           PRENOM_NOM:
             type: text
+            analyzer: norm
           NOM:
             type: text
+            analyzer: norm
             fields:
               raw:
                 type: keyword
+                normalizer: norm
           PRENOM:
             type: text
+            analyzer: norm
             fields:
               raw:
                 type: keyword
+                normalizer: norm
           PRENOMS:
             type: text
             fields:
               raw:
                 type: keyword
+                normalizer: norm
           SEXE:
             type: keyword
           DATE_NAISSANCE:
@@ -59,16 +74,20 @@ datasets:
                 type: keyword
           COMMUNE_NAISSANCE:
             type: text
+            analyzer: norm
             fields:
               raw:
                 type: keyword
+                normalizer: norm
           DEPARTEMENT_NAISSANCE:
             type: keyword
           PAYS_NAISSANCE:
             type: text
+            analyzer: norm
             fields:
               raw:
                 type: keyword
+                normalizer: norm
           GEOPOINT_NAISSANCE:
             type: geo_point
           DATE_DECES:
@@ -83,15 +102,19 @@ datasets:
             type: short
           COMMUNE_DECES:
             type: text
+            analyzer: norm
             fields:
               raw:
                 type: keyword
+                normalizer: norm
           DEPARTEMENT_DECES:
             type: keyword
           PAYS_DECES:
             type: text
+            analyzer: norm
             fields:
               raw:
                 type: keyword
+                normalizer: norm
           GEOPOINT_DECES:
             type: geo_point
