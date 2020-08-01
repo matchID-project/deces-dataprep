@@ -35,6 +35,8 @@ datasets:
         properties:
           UID:
             type: keyword
+          SOURCE:
+            type: keyword
           PRENOMS_NOM:
             type: text
             analyzer: autocomplete_analyzer
