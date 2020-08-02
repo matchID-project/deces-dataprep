@@ -39,8 +39,7 @@ datasets:
             type: keyword
           PRENOMS_NOM:
             type: text
-            analyzer: autocomplete_analyzer
-            search_analyzer: norm
+            analyzer: norm
           PRENOM_NOM:
             type: text
             analyzer: norm
@@ -60,6 +59,7 @@ datasets:
                 normalizer: norm
           PRENOMS:
             type: text
+            analyzer: norm
             fields:
               raw:
                 type: keyword
