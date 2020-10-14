@@ -25,6 +25,7 @@ export DATAGOUV_API = https://www.data.gouv.fr/api/1/datasets
 export DATAGOUV_DATASET = fichier-des-personnes-decedees
 export DATAGOUV_CONNECTOR = s3
 export STORAGE_BUCKET=${DATAGOUV_DATASET}
+export STORAGE_CLI=rclone
 export DATA_DIR=${PWD}/data
 export BACKUP_DIR = ${PWD}/${GIT_BACKEND}/backup
 export DATA_TAG=${PWD}/data-tag
@@ -97,8 +98,8 @@ check-upload:
 
 backup-pull: data-tag
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} storage-pull\
-		STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
-		FILE=esdata_${DATAPREP_VERSION}_$$(cat data.tag).tar &&\
+		STORAGE_CLI=${STORAGE_CLI} STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
+		FILE=esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}).tar &&\
 	touch backup-pull
 
 ${GIT_BACKEND}:
@@ -191,7 +192,7 @@ backup-push: data-tag backup
 	@if [ ! -f backup-push ];then\
 		ES_BACKUP_FILE_ROOT=esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG});\
 		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch-storage-push\
-			STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
+			STORAGE_CLI=${STORAGE_CLI} STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
 			ES_BACKUP_FILE=$$ES_BACKUP_FILE_ROOT.tar\
 			ES_BACKUP_FILE_SNAR=$$ES_BACKUP_FILE_ROOT.snar &&\
 			touch backup-push &&\
