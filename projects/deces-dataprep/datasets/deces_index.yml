@@ -18,11 +18,12 @@ datasets:
               tokenizer: "keyword"
             norm:
               tokenizer: standard
+              char_filter: ["alphanum"]
               filter: ["asciifolding", "lowercase"]
           normalizer:
             norm:
               type: custom
-              char_filter: []
+              char_filter: ["alphanum"]
               filter: ["asciifolding", "lowercase"]
           tokenizer:
             edge_tokenizer2:
@@ -30,6 +31,11 @@ datasets:
               min_gram: 2
               max_gram: 10
               token_chars: ["letter", "digit"]
+          char_filter:
+            alphanum:
+              type: pattern_replace
+              pattern: "[^a-zA-Z0-9]"
+              replacement: " "
       mappings:
         dynamic: False
         properties:
@@ -37,6 +43,7 @@ datasets:
             type: keyword
           SOURCE:
             type: keyword
+            normalizer: norm
           PRENOMS_NOM:
             type: text
             analyzer: norm
@@ -81,8 +88,12 @@ datasets:
               raw:
                 type: keyword
                 normalizer: norm
+          CODE_INSEE_NAISSANCE:
+            type: keyword
+            normalizer: norm
           DEPARTEMENT_NAISSANCE:
             type: keyword
+            normalizer: norm
           PAYS_NAISSANCE:
             type: text
             analyzer: norm
@@ -109,8 +120,12 @@ datasets:
               raw:
                 type: keyword
                 normalizer: norm
+          CODE_INSEE_DECES:
+            type: keyword
+            normalizer: norm
           DEPARTEMENT_DECES:
             type: keyword
+            normalizer: norm
           PAYS_DECES:
             type: text
             analyzer: norm
