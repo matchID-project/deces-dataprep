@@ -44,6 +44,8 @@ datasets:
           SOURCE:
             type: keyword
             normalizer: norm
+          SOURCE_LINE:
+            type: integer
           PRENOMS_NOM:
             type: text
             analyzer: norm
