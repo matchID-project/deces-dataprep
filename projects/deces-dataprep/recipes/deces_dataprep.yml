@@ -10,8 +10,8 @@ recipes:
           select: (NOM_PRENOMS|COMMUNE_NAISSANCE|PAYS_NAISSANCE|NUM_DECES)$
       - exec:
         # tag dataset and records with uniq id
+          - "df['UID'] = df.apply(lambda row:  base64.urlsafe_b64encode(blake3(str(tuple(row)).encode('utf-8')).digest()), axis=1).str.slice(stop=12)"
           - df['SOURCE'] = str(desc['source']['name'])
-          - "df['UID'] = df.apply(lambda row: sha1(tuple(row)), axis=1).str.slice(stop=16)"
       - replace:
           select: SOURCE
           regex:
