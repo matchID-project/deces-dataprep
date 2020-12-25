@@ -34,7 +34,7 @@ datasets:
           char_filter:
             alphanum:
               type: pattern_replace
-              pattern: "[^a-zA-Z0-9]"
+              pattern: '[^\p{L}\d]'
               replacement: " "
       mappings:
         dynamic: False
