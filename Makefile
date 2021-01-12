@@ -32,7 +32,7 @@ export BACKUP_CHECK=${PWD}/backup-check
 # files to sync:
 export FILES_TO_SYNC=deces-.*.txt(.gz)?
 # files to process:
-export FILES_TO_PROCESS=deces-([0-9]{4}|2020-m[0-9]{2}).txt.gz
+export FILES_TO_PROCESS=deces-([0-9]{4}|2021-m[0-9]{2}).txt.gz
 export SSHID=matchid@matchid.project.gmail.com
 export SSHKEY_PRIVATE = ${HOME}/.ssh/id_rsa_${APP}
 export SSHKEY = ${SSHKEY_PRIVATE}.pub
