@@ -191,6 +191,16 @@ recipes:
               df['COMMUNE_NAISSANCE'].str.split("/"),
               df['COMMUNE_NAISSANCE']
             )
+      - exec: >
+          df['DEPARTEMENT_NAISSANCE'] = np.where(
+            df['DEPARTEMENT_NAISSANCE'] == "",
+            np.where(
+              df['PAYS_NAISSANCE_CODE'].str.match('XXXXX'),
+              df['CODE_INSEE_NAISSANCE'].replace('...$','',regex=True),
+              df['DEPARTEMENT_NAISSANCE']
+            ),
+            df['DEPARTEMENT_NAISSANCE'] 
+          )
       - delete:
           select: CODE_INSEE_NAISSANCE_NORM|COMMUNE_NAISSANCE_(REF|ALL)
       - exec: >
