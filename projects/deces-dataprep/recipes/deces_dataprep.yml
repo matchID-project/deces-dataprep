@@ -108,6 +108,7 @@ recipes:
             - ^98405: XXXXX # LA REUNION > FR
             - ^98406: "99399" # DJIBOUTI
             - ^98506: "99243" #VIETNAM (only for birth)
+            - ^99143: "99254" #CHYPRE
             - ^9(1|2|3|4)352$: "99352" #algérie 
             - ^98(4|5|6|7|8)(..)$: "XXXXX" #mayotte, nlle calédonie, ...
             - ^9[0-5](...)$: "XXXXX" # idf+belfort
@@ -241,6 +242,7 @@ recipes:
             - ^98402: "99397" # COMORES
             - ^98405: XXXXX # LA REUNION > FR
             - ^98406: "99399" # DJIBOUTI
+            - ^99143: "99254" #CHYPRE
             - ^9(1|2|3|4)352$: "99352" #algérie 
             - ^98(4|5|6|7|8)(..)$: "XXXXX" #mayotte, nlle calédonie, ...
             - ^9[0-5](...)$: "XXXXX" # idf+belfort
