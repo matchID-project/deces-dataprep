@@ -132,7 +132,7 @@ recipes:
             )
           )
       - delete:
-          select: PAYS_NAISSANCE_(LIBCOG|CODE)
+          select: PAYS_NAISSANCE_LIBCOG
           
       #historique commune naissance
       - map:
@@ -151,7 +151,7 @@ recipes:
           strict: 
             CODE_INSEE_NAISSANCE_NORM: insee_code
           select: 
-            # CODE_INSEE_NAISSANCE_HISTORY: insee_code_history
+            CODE_INSEE_NAISSANCE_HISTORY: insee_code_history
             COMMUNE_NAISSANCE_REF: name
             COMMUNE_NAISSANCE_ALTER: newest_name
             DEPARTEMENT_NAISSANCE: dep_code
@@ -193,7 +193,20 @@ recipes:
             )
       - delete:
           select: CODE_INSEE_NAISSANCE_NORM|COMMUNE_NAISSANCE_(REF|ALL)
-
+      - exec: >
+          df['CODE_INSEE_NAISSANCE_HISTORY'] = np.where(
+                df['CODE_INSEE_NAISSANCE_HISTORY'] .str.contains('"'), 
+                np.where(
+                  df['CODE_INSEE_NAISSANCE_HISTORY'] .str.contains(','),
+                  df['CODE_INSEE_NAISSANCE_HISTORY'].replace('[^AB0-9,]','',regex=True).str.split(','),
+                  df['CODE_INSEE_NAISSANCE_HISTORY'].replace('[^AB0-9]','',regex=True)
+                ),
+                np.where(
+                  df['CODE_INSEE_NAISSANCE']  == df['PAYS_NAISSANCE_CODE'],
+                  df['CODE_INSEE_NAISSANCE'], 
+                  (df['PAYS_NAISSANCE_CODE'] + "," + df['CODE_INSEE_NAISSANCE']).str.split(',')
+                )
+              )
       #pays décès
       - map:
           PAYS_DECES_CODE: CODE_INSEE_DECES
@@ -232,7 +245,7 @@ recipes:
             PAYS_DECES_CODEISO3: CODEISO3
             PAYS_DECES: LIBCOG
       - delete:
-          select: PAYS_DECES_CODE
+          select: PAYS_(NAISSANCE|DECES)_CODE
       - exec:
           - df['PAYS_DECES'] = df['PAYS_DECES'].astype('str').str.title()
 
