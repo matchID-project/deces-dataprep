@@ -80,9 +80,9 @@ datasets:
             index_prefixes:
               min_chars: 4
               max_chars: 6
-            fields:
-              raw:
-                type: keyword
+          DATE_NAISSANCE_NORM:
+            type: date
+            format: yyyyMMdd
           COMMUNE_NAISSANCE:
             type: text
             analyzer: norm
@@ -91,6 +91,9 @@ datasets:
                 type: keyword
                 normalizer: norm
           CODE_INSEE_NAISSANCE:
+            type: keyword
+            normalizer: norm
+          CODE_INSEE_NAISSANCE_HISTORIQUE:
             type: keyword
             normalizer: norm
           DEPARTEMENT_NAISSANCE:
@@ -110,9 +113,9 @@ datasets:
             index_prefixes:
               min_chars: 4
               max_chars: 6
-            fields:
-              raw:
-                type: keyword
+          DATE_DECES_NORM:
+            type: date
+            format: yyyyMMdd
           AGE_DECES:
             type: short
           COMMUNE_DECES:
@@ -123,6 +126,9 @@ datasets:
                 type: keyword
                 normalizer: norm
           CODE_INSEE_DECES:
+            type: keyword
+            normalizer: norm
+          CODE_INSEE_DECES_HISTORIQUE:
             type: keyword
             normalizer: norm
           DEPARTEMENT_DECES:
