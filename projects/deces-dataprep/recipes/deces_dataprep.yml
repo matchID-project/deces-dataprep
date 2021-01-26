@@ -75,8 +75,8 @@ recipes:
             - /00: /01
             - /: ''
       - map:
-         DATE_DECES_DT: DATE_DECES
-         DATE_NAISSANCE_DT: DATE_NAISSANCE
+         DATE_DECES_DT: DATE_DECES_NORM
+         DATE_NAISSANCE_DT: DATE_NAISSANCE_NORM
       - parsedate:
          select: DATE.*DT
          format: "%Y%m%d"
@@ -321,4 +321,4 @@ recipes:
       - delete:
           select: PAYS_(NAISSANCE|DECES)_CODE
       - delete:
-          select: .*ALTER|.*NORM
+          select: .*ALTER|CODE.*NORM
