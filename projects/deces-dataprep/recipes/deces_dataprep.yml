@@ -57,13 +57,13 @@ recipes:
           - df['PRENOMS_NOM'] = df['PRENOMS_NOM'].astype('str').str.lower()
           - df['PRENOM_NOM'] = df['PRENOM']+ " " + df['NOM']
           - df['PRENOM_NOM'] = df['PRENOM_NOM'].astype('str').str.lower()
-      #dates
       - map:
           DATE_NAISSANCE_NORM: DATE_NAISSANCE
           DATE_DECES_NORM: DATE_DECES
       - replace:
           select: DATE_(DECES|NAISSANCE)_NORM
           regex:
+            - '00000000': ''
             - (\d{4})(\d{2})(\d{2}): '\1/\2/\3'
             - /(3[2-9]|[4-9][0-9])$: /31
             - /(1[3-9])/: /12/
@@ -80,8 +80,8 @@ recipes:
       - parsedate:
          select: DATE.*DT
          format: "%Y%m%d"
-      - exec: >
-         df['AGE_DECES'] = np.where(df['DATE_DECES'] > df['DATE_NAISSANCE'],
+      - exec:
+         - df['AGE_DECES'] = np.where(df['DATE_DECES'] > df['DATE_NAISSANCE'],
            (df['DATE_DECES_DT'] - df['DATE_NAISSANCE_DT']).astype('<m8[Y]'),
            None)
       - delete:
