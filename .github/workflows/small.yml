@@ -1,6 +1,9 @@
-name: Publish data
+name: Index deces-2020-m01.txt.gz and deaths.txt.gz
 
-on: [push]
+on:
+  push:
+    branches:
+      - dev
 
 jobs:
   build:
@@ -17,10 +20,8 @@ jobs:
       #   uses: mxschmitt/action-tmate@v2
       - name: 🏃 Run small dataset
         run:
-          if [[ ( "$GIT_BRANCH" == "dev" ) ]]; then
-            make clean config all recipe-run watch-run FILES_TO_PROCESS=deces-2020-m01.txt.gz STORAGE_ACCESS_KEY=$STORAGE_ACCESS_KEY STORAGE_SECRET_KEY=$STORAGE_SECRET_KEY CHUNK_SIZE=5000 ES_THREADS=2 RECIPE_THREADS=2 ES_MEM=4000m;
-            make clean config all recipe-run watch-run FILES_TO_PROCESS=deaths.txt.gz STORAGE_ACCESS_KEY=$STORAGE_ACCESS_KEY STORAGE_SECRET_KEY=$STORAGE_SECRET_KEY CHUNK_SIZE=5000 ES_THREADS=2 RECIPE_THREADS=2 ES_MEM=4000m;
-          fi;
+          make clean config all recipe-run watch-run FILES_TO_PROCESS=deces-2020-m01.txt.gz STORAGE_ACCESS_KEY=$STORAGE_ACCESS_KEY STORAGE_SECRET_KEY=$STORAGE_SECRET_KEY CHUNK_SIZE=5000 ES_THREADS=2 RECIPE_THREADS=2 ES_MEM=4000m;
+          make clean config all recipe-run watch-run FILES_TO_PROCESS=deaths.txt.gz STORAGE_ACCESS_KEY=$STORAGE_ACCESS_KEY STORAGE_SECRET_KEY=$STORAGE_SECRET_KEY CHUNK_SIZE=5000 ES_THREADS=2 RECIPE_THREADS=2 ES_MEM=4000m;
         env:
           STORAGE_ACCESS_KEY: ${{ secrets.STORAGE_ACCESS_KEY }}
           STORAGE_SECRET_KEY: ${{ secrets.STORAGE_SECRET_KEY }}
