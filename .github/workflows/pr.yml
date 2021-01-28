@@ -1,10 +1,10 @@
-name: Build data
+name: Test building data on PR
 
 on: pull_request
 
 jobs:
   test:
-    name: test locally on small dataset (PR)
+    name: locally
     runs-on: ubuntu-latest
 
     steps:

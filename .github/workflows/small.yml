@@ -1,10 +1,10 @@
-name: Build data
+name: Publish data
 
 on: [push]
 
 jobs:
   build:
-    name: build locally and publish small datasets
+    name: locally, small datasets
     runs-on: ubuntu-latest
 
     steps:
