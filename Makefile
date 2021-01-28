@@ -109,6 +109,10 @@ ${GIT_BACKEND}:
 	@echo "export ES_NODES=${ES_NODES}" >> ${GIT_BACKEND}/artifacts
 	@echo "export PROJECTS=${PWD}/projects" >> ${GIT_BACKEND}/artifacts
 	@echo "export STORAGE_BUCKET=${STORAGE_BUCKET}" >> ${GIT_BACKEND}/artifacts
+	sed -i -E "s/backend: network backend-docker-check/backend: network #backend-docker-check/"  backend/Makefile
+	sed -i -E "s/export API_SECRET_KEY:=(.*)/export API_SECRET_KEY:=1234/"  backend/Makefile
+	sed -i -E "s/export ADMIN_PASSWORD:=(.*)/export ADMIN_PASSWORD:=1234ABC/"  backend/Makefile
+	sed -i -E "s/id(.*):=(.*)/id:=myid/"  backend/Makefile
 
 dev: config
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch backend frontend &&\
@@ -126,7 +130,8 @@ up:
 recipe-run: data-tag
 	@if [ ! -f recipe-run ];then\
 		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch ES_NODES=${ES_NODES} ES_MEM=${ES_MEM} ${MAKEOVERRIDES};\
-		echo running recipe on full data;\
+		echo running recipe on data $$(cat ${DATA_TAG}), dataprep ${DATAPREP_VERSION};\
+		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} version;\
 		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} recipe-run \
 			RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE}\
 			ES_PRELOAD='${ES_PRELOAD}' ES_THREADS=${ES_THREADS} \
