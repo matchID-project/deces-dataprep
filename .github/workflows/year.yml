@@ -1,0 +1,58 @@
+name: Index year
+
+on:
+  push:
+    branches:
+      - dev
+  schedule:
+    - cron: "0 * * * *"
+
+jobs:
+  build:
+    name: remotely, large datasets
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: Extract branch name
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+        id: extract_branch
+      # - name: Setup tmate session
+      #   uses: mxschmitt/action-tmate@v2
+      - name: deploy-key (if dev or master)
+        run: |
+          mkdir -p ~/.ssh/;
+          ssh-agent -a $SSH_AUTH_SOCK > /dev/null;
+          echo "$SSHENC" | base64 -d | gpg -d --passphrase $SSHPWD --batch > /tmp/id_rsa_matchID;
+          chmod 600 /tmp/id_rsa_matchID;
+          ssh-add /tmp/id_rsa_matchID;
+          echo "$SSHPUB" > ~/.ssh/id_rsa_matchID.pub;
+          echo "Host * !""$BASTION_HOST" > ~/.ssh/config;
+          echo "   ProxyCommand ssh -o StrictHostKeyChecking=no $BASTION_USER@$BASTION_HOST nc %h %p" >> ~/.ssh/config;
+          cat ~/.ssh/config;
+        env:
+          GIT_BRANCH: ${{ steps.extract_branch.outputs.branch }}
+          BASTION_HOST: ${{ secrets.BASTION_HOST }}
+          BASTION_USER: ${{ secrets.BASTION_USER }}
+          SSHENC: ${{ secrets.SSHENC }}
+          SSHPWD: ${{ secrets.SSHPWD }}
+          SSHPUB: ${{ secrets.SSHPUB }}
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+      - name: Run
+        if: success()
+        run: |
+          make clean remote-all GIT_BRANCH="$GIT_BRANCH" FILES_TO_PROCESS=deces-2020-m[0-1][0-9].txt.gz \
+            CHUNK_SIZE=50000 ES_THREADS=10 RECIPE_THREADS=16 ES_MEM=24000m RECIPE_QUEUE=16 SCW_FLAVOR=GP1-M;
+        env:
+          VERBOSE: True
+          GIT_BRANCH: ${{ steps.extract_branch.outputs.branch }}
+          remote_http_proxy: ${{ secrets.remote_http_proxy }}
+          remote_https_proxy: ${{ secrets.remote_https_proxy }}
+          remote_no_proxy: localhost
+          SCW_ORGANIZATION_ID: ${{ secrets.SCW_ORGANIZATION_ID }}
+          SCW_SECRET_TOKEN: ${{ secrets.SCW_SECRET_TOKEN }}
+          SCW_SERVER_OPTS: ${{ secrets.SCW_SERVER_OPTS }}
+          STORAGE_ACCESS_KEY: ${{ secrets.STORAGE_ACCESS_KEY }}
+          STORAGE_SECRET_KEY: ${{ secrets.STORAGE_SECRET_KEY }}
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
