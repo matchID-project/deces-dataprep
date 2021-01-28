@@ -1,10 +1,10 @@
-name: Build data
+name: Publish data
 
 on: [push]
 
 jobs:
   build:
-    name: build large datasets remotely
+    name: remotely, large datasets
     runs-on: ubuntu-latest
 
     steps:
