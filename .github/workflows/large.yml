@@ -40,17 +40,15 @@ jobs:
         if: success()
         run: |
           if [[ ( "$GIT_BRANCH" == "dev" ) ]]; then
-            make clean remote-all \
-              GIT_BRANCH="$TRAVIS_BRANCH" \
-              FILES_TO_PROCESS=deces-2020-m[0-1][0-9].txt.gz \
+            make clean remote-all GIT_BRANCH="$GIT_BRANCH" FILES_TO_PROCESS=deces-2020-m[0-1][0-9].txt.gz \
               CHUNK_SIZE=50000 ES_THREADS=10 RECIPE_THREADS=16 ES_MEM=24000m RECIPE_QUEUE=16 SCW_FLAVOR=GP1-M;
-            fi;
+          fi;
           if [[ ( "$GIT_BRANCH" == "master" ) ]]; then
-            make clean remote-all \
-              GIT_BRANCH="$TRAVIS_BRANCH" \
+            make clean remote-all GIT_BRANCH="$GIT_BRANCH" \
               CHUNK_SIZE=75000 ES_THREADS=48 RECIPE_THREADS=60 ES_MEM=48000m RECIPE_QUEUE=64 SCW_FLAVOR=GP1-XL;
           fi;
         env:
+          VERBOSE: True
           GIT_BRANCH: ${{ steps.extract_branch.outputs.branch }}
           remote_http_proxy: ${{ secrets.remote_http_proxy }}
           remote_https_proxy: ${{ secrets.remote_https_proxy }}
@@ -61,4 +59,3 @@ jobs:
           STORAGE_ACCESS_KEY: ${{ secrets.STORAGE_ACCESS_KEY }}
           STORAGE_SECRET_KEY: ${{ secrets.STORAGE_SECRET_KEY }}
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
-
