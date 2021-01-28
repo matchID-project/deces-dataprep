@@ -38,7 +38,7 @@ recipes:
       - replace:
           select: NOM$
           regex:
-            - ^(.*)\*.*/$: '\1'     
+            - ^(.*)\*.*/$: '\1'
       - replace:
           select: PRENOMS?$
           regex:
@@ -57,12 +57,14 @@ recipes:
           - df['PRENOMS_NOM'] = df['PRENOMS_NOM'].astype('str').str.lower()
           - df['PRENOM_NOM'] = df['PRENOM']+ " " + df['NOM']
           - df['PRENOM_NOM'] = df['PRENOM_NOM'].astype('str').str.lower()
+      #dates
       - map:
           DATE_NAISSANCE_NORM: DATE_NAISSANCE
           DATE_DECES_NORM: DATE_DECES
       - replace:
           select: DATE_(DECES|NAISSANCE)_NORM
           regex:
+            - '\D*': ''
             - '00000000': ''
             - (\d{4})(\d{2})(\d{2}): '\1/\2/\3'
             - /(3[2-9]|[4-9][0-9])$: /31
@@ -74,18 +76,15 @@ recipes:
             - (04|06|09|11)/31\$: \1/30
             - /00: /01
             - /: ''
-      - map:
-         DATE_DECES_DT: DATE_DECES_NORM
-         DATE_NAISSANCE_DT: DATE_NAISSANCE_NORM
       - parsedate:
-         select: DATE.*DT
+         select: DATE.*NORM
          format: "%Y%m%d"
       - exec:
-         - df['AGE_DECES'] = np.where(df['DATE_DECES'] > df['DATE_NAISSANCE'],
-           (df['DATE_DECES_DT'] - df['DATE_NAISSANCE_DT']).astype('<m8[Y]'),
-           None)
-      - delete:
-          select: DATE.*DT
+          - df['AGE_DECES'] = np.where(df['DATE_DECES'] > df['DATE_NAISSANCE'],
+            (df['DATE_DECES_NORM'] - df['DATE_NAISSANCE_NORM']).astype('<m8[Y]'),
+            None)
+          - df['DATE_NAISSANCE_NORM'] = df['DATE_NAISSANCE_NORM'].dt.strftime('%Y%m%d')
+          - df['DATE_DECES_NORM'] = df['DATE_DECES_NORM'].dt.strftime('%Y%m%d')
       #pays naissance
       - map:
           PAYS_NAISSANCE_CODE: CODE_INSEE_NAISSANCE
@@ -112,15 +111,15 @@ recipes:
             - ^98406: "99399" # DJIBOUTI
             - ^98506: "99243" #VIETNAM (only for birth)
             - ^99143: "99254" #CHYPRE
-            - ^9(1|2|3|4)352$: "99352" #algérie 
+            - ^9(1|2|3|4)352$: "99352" #algérie
             - ^98(4|5|6|7|8)(..)$: "XXXXX" #mayotte, nlle calédonie, ...
             - ^9[0-5](...)$: "XXXXX" # idf+belfort
             - ^97[1-6](..)$: "XXXXX" # DOMs
-            - ^[0-8]....$: "XXXXX" 
+            - ^[0-8]....$: "XXXXX"
       - join:
           dataset: countries
           type: in_memory
-          strict: 
+          strict:
             PAYS_NAISSANCE_CODE: COG
           select:
             PAYS_NAISSANCE_CODEISO3: CODEISO3
@@ -137,7 +136,7 @@ recipes:
           )
       - delete:
           select: PAYS_NAISSANCE_LIBCOG
-          
+
       #historique commune naissance
       - map:
           CODE_INSEE_NAISSANCE_NORM: CODE_INSEE_NAISSANCE
@@ -146,15 +145,15 @@ recipes:
           regex:
             - ^9.352$: '' #algérie
             - ^985(..)$: '976\1' # mayotte
-            - ^98405: '97409' # mapping "La Réunion" to "Saint-Denis 1, La Réunion" 
+            - ^98405: '97409' # mapping "La Réunion" to "Saint-Denis 1, La Réunion"
             - ^98(2|3|4).*$: '' # anciennes colonies
             - ^99.*$: '' #pays étrangers
       - join:
           dataset: french_citycodes
           type: in_memory
-          strict: 
+          strict:
             CODE_INSEE_NAISSANCE_NORM: insee_code
-          select: 
+          select:
             CODE_INSEE_NAISSANCE_HISTORIQUE: insee_code_history
             COMMUNE_NAISSANCE_REF: name
             COMMUNE_NAISSANCE_ALTER: newest_name
@@ -188,7 +187,7 @@ recipes:
           - df['COMMUNE_NAISSANCE'] = np.where(
                 df['COMMUNE_NAISSANCE_REF'].str.contains('Arrondissement'),
                 df['COMMUNE_NAISSANCE_REF'].str.replace(r'^(\w+)\s.*$',r'\1',regex=True) + "/" + df['COMMUNE_NAISSANCE_REF'],
-                df['COMMUNE_NAISSANCE_ALL'] 
+                df['COMMUNE_NAISSANCE_ALL']
             )
           - df['COMMUNE_NAISSANCE'] = np.where(
               df['COMMUNE_NAISSANCE'].str.contains("/"),
@@ -203,13 +202,13 @@ recipes:
               df['CODE_INSEE_NAISSANCE'].replace('...$','',regex=True),
               df['DEPARTEMENT_NAISSANCE']
             ),
-            df['DEPARTEMENT_NAISSANCE'] 
+            df['DEPARTEMENT_NAISSANCE']
           )
       - delete:
           select: CODE_INSEE_NAISSANCE_NORM|COMMUNE_NAISSANCE_(REF|ALL)
       - exec: >
           df['CODE_INSEE_NAISSANCE_HISTORIQUE'] = np.where(
-                df['CODE_INSEE_NAISSANCE_HISTORIQUE'] .str.contains('"'), 
+                df['CODE_INSEE_NAISSANCE_HISTORIQUE'] .str.contains('"'),
                 np.where(
                   df['CODE_INSEE_NAISSANCE_HISTORIQUE'] .str.contains(','),
                   df['CODE_INSEE_NAISSANCE_HISTORIQUE'].replace('[^AB0-9,]','',regex=True).str.split(','),
@@ -217,7 +216,7 @@ recipes:
                 ),
                 np.where(
                   df['CODE_INSEE_NAISSANCE']  == df['PAYS_NAISSANCE_CODE'],
-                  df['CODE_INSEE_NAISSANCE'], 
+                  df['CODE_INSEE_NAISSANCE'],
                   (df['PAYS_NAISSANCE_CODE'] + "," + df['CODE_INSEE_NAISSANCE']).str.split(',')
                 )
               )
@@ -246,15 +245,15 @@ recipes:
             - ^98405: XXXXX # LA REUNION > FR
             - ^98406: "99399" # DJIBOUTI
             - ^99143: "99254" #CHYPRE
-            - ^9(1|2|3|4)352$: "99352" #algérie 
+            - ^9(1|2|3|4)352$: "99352" #algérie
             - ^98(4|5|6|7|8)(..)$: "XXXXX" #mayotte, nlle calédonie, ...
             - ^9[0-5](...)$: "XXXXX" # idf+belfort
             - ^97[1-6](..)$: "XXXXX" # DOMs
-            - ^[0-8]....$: "XXXXX" 
+            - ^[0-8]....$: "XXXXX"
       - join:
           dataset: countries
           type: in_memory
-          strict: 
+          strict:
             PAYS_DECES_CODE: COG
           select:
             PAYS_DECES_CODEISO3: CODEISO3
@@ -270,15 +269,15 @@ recipes:
           regex:
             - ^9.352$: '' #algérie
             - ^985(..)$: '976\1' # mayotte
-            - ^98405: '97409' # mapping "La Réunion" to "Saint-Denis 1, La Réunion" 
+            - ^98405: '97409' # mapping "La Réunion" to "Saint-Denis 1, La Réunion"
             - ^98(2|3|4).*$: '' # anciennes colonies
             - ^99.*$: '' #pays étrangers
       - join:
           dataset: french_citycodes
           type: in_memory
-          strict: 
+          strict:
             CODE_INSEE_DECES_NORM: insee_code
-          select: 
+          select:
             CODE_INSEE_DECES_HISTORIQUE: insee_code_history
             COMMUNE_DECES: name
             COMMUNE_DECES_ALTER: newest_name
@@ -297,8 +296,8 @@ recipes:
           - df['COMMUNE_DECES'] = np.where(
                 df['COMMUNE_DECES'].str.contains('Arrondissement'),
                 df['COMMUNE_DECES'].str.replace(r'^(\w+)\s.*$',r'\1',regex=True) + "/" + df['COMMUNE_DECES'],
-                df['COMMUNE_DECES'] 
-            )              
+                df['COMMUNE_DECES']
+            )
           - df['COMMUNE_DECES'] = np.where(
               df['COMMUNE_DECES'].str.contains("/"),
               df['COMMUNE_DECES'].str.split("/"),
@@ -306,7 +305,7 @@ recipes:
             )
       - exec: >
           df['CODE_INSEE_DECES_HISTORIQUE'] = np.where(
-                df['CODE_INSEE_DECES_HISTORIQUE'] .str.contains('"'), 
+                df['CODE_INSEE_DECES_HISTORIQUE'] .str.contains('"'),
                 np.where(
                   df['CODE_INSEE_DECES_HISTORIQUE'] .str.contains(','),
                   df['CODE_INSEE_DECES_HISTORIQUE'].replace('[^AB0-9,]','',regex=True).str.split(','),
@@ -314,7 +313,7 @@ recipes:
                 ),
                 np.where(
                   df['CODE_INSEE_DECES']  == df['PAYS_DECES_CODE'],
-                  df['CODE_INSEE_DECES'], 
+                  df['CODE_INSEE_DECES'],
                   (df['PAYS_DECES_CODE'] + "," + df['CODE_INSEE_DECES']).str.split(',')
                 )
               )

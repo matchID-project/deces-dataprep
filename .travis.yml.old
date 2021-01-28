@@ -37,22 +37,22 @@ before_script:
     fi
 
 script:
-  - git fetch && git describe --tags
-  - make config
-  - if [[ ( "$TRAVIS_PULL_REQUEST" == "false" ) ]]; then
-      make all FILES_TO_PROCESS=deces-2020-m01.txt.gz || travis_terminate 1;
-    fi
-  - if [[ ( "$TRAVIS_PULL_REQUEST" == "false" ) && ( "$TRAVIS_BRANCH" == "dev" ) ]]; then
-      make clean remote-all
-          GIT_BRANCH="$TRAVIS_BRANCH"
-          FILES_TO_PROCESS=deces-2020-m[0-1][0-9].txt.gz
-          CHUNK_SIZE=50000 ES_THREADS=10 RECIPE_THREADS=16 ES_MEM=24000m RECIPE_QUEUE=16 SCW_FLAVOR=GP1-M;
-    fi
-  - if [[ ( "$TRAVIS_PULL_REQUEST" == "false" ) && ( "$TRAVIS_BRANCH" == "master" ) ]]; then
-      make clean remote-all
-        GIT_BRANCH="$TRAVIS_BRANCH"
-        CHUNK_SIZE=75000 ES_THREADS=48 RECIPE_THREADS=60 ES_MEM=48000m RECIPE_QUEUE=64 SCW_FLAVOR=GP1-XL;
-    fi
+  #- git fetch && git describe --tags
+  #- make config
+  #- if [[ ( "$TRAVIS_PULL_REQUEST" == "false" ) ]]; then
+  #    make all FILES_TO_PROCESS=deces-2020-m01.txt.gz || travis_terminate 1;
+  #  fi
+  #- if [[ ( "$TRAVIS_PULL_REQUEST" == "false" ) && ( "$TRAVIS_BRANCH" == "dev" ) ]]; then
+  #    make clean remote-all
+  #        GIT_BRANCH="$TRAVIS_BRANCH"
+  #        FILES_TO_PROCESS=deces-2020-m[0-1][0-9].txt.gz
+  #        CHUNK_SIZE=50000 ES_THREADS=10 RECIPE_THREADS=16 ES_MEM=24000m RECIPE_QUEUE=16 SCW_FLAVOR=GP1-M;
+  #  fi
+  #- if [[ ( "$TRAVIS_PULL_REQUEST" == "false" ) && ( "$TRAVIS_BRANCH" == "master" ) ]]; then
+  #    make clean remote-all
+  #      GIT_BRANCH="$TRAVIS_BRANCH"
+  #      CHUNK_SIZE=75000 ES_THREADS=48 RECIPE_THREADS=60 ES_MEM=48000m RECIPE_QUEUE=64 SCW_FLAVOR=GP1-XL;
+  #  fi
 
 after_failure:
   - if [[ ( "$TRAVIS_PULL_REQUEST" == "false" ) && (( "$TRAVIS_BRANCH" == "dev" ) || ( "$TRAVIS_BRANCH" == "master" ))]]; then
