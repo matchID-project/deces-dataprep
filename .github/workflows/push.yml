@@ -4,7 +4,7 @@ on: [push]
 
 jobs:
   build:
-    name: Docker image build CI
+    name: build large datasets remotely
     runs-on: ubuntu-latest
 
     steps:
