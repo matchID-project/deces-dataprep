@@ -13,8 +13,8 @@ jobs:
         shell: bash
         run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
         id: extract_branch
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v2
+      # - name: Setup tmate session
+      #   uses: mxschmitt/action-tmate@v2
       - name: deploy-key (if dev or master)
         run: |
           if [[ ( "$GIT_BRANCH" == "dev" ) || ( "$GIT_BRANCH" == "master" ) ]]; then

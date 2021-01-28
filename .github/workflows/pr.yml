@@ -13,8 +13,8 @@ jobs:
         shell: bash
         run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
         id: extract_branch
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v2
+      # - name: Setup tmate session
+      #   uses: mxschmitt/action-tmate@v2
       - name: 🏃 Run small dataset
         #if: steps.extract_branch.outputs.branch == 'master' || steps.extract_branch.outputs.branch == 'dev'
         run: make all-step0 recipe-run watch-run FILES_TO_PROCESS=deces-2020-m01.txt.gz STORAGE_ACCESS_KEY=$STORAGE_ACCESS_KEY STORAGE_SECRET_KEY=$STORAGE_SECRET_KEY CHUNK_SIZE=5000 ES_THREADS=2 RECIPE_THREADS=2 ES_MEM=4000m
