@@ -7,7 +7,7 @@ datasets:
       regex: !ENV ${FILES_TO_PROCESS}
     compression: gzip
     type: fwf
-    encoding: utf8
+    encoding: latin1
     widths: [80, 1, 8, 5, 30, 30, 8, 5, 10]
     names:
       - NOM_PRENOMS
