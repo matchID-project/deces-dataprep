@@ -1,9 +1,6 @@
 name: Index year
 
 on:
-  push:
-    branches:
-      - dev
   schedule:
     - cron: "0 * * * *"
 

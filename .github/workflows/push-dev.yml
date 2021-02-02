@@ -1,8 +1,9 @@
-name: Index full data
+name: Index year
 
 on:
-  schedule:
-    - cron: "3 * * * *"
+  push:
+    branches:
+      - dev
 
 jobs:
   build:
@@ -39,8 +40,8 @@ jobs:
       - name: Run
         if: success()
         run: |
-          make clean remote-all GIT_BRANCH="$GIT_BRANCH" \
-            CHUNK_SIZE=75000 ES_THREADS=48 RECIPE_THREADS=60 ES_MEM=48000m RECIPE_QUEUE=64 SCW_FLAVOR=GP1-XL;
+          make clean remote-all GIT_BRANCH="$GIT_BRANCH" FILES_TO_PROCESS=deces-2020-m[0-1][0-9].txt.gz \
+            CHUNK_SIZE=50000 ES_THREADS=10 RECIPE_THREADS=16 ES_MEM=24000m RECIPE_QUEUE=16 SCW_FLAVOR=GP1-M;
         env:
           VERBOSE: True
           GIT_BRANCH: ${{ steps.extract_branch.outputs.branch }}
