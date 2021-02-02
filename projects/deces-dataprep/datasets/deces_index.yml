@@ -80,6 +80,9 @@ datasets:
             index_prefixes:
               min_chars: 4
               max_chars: 6
+            fields:
+              raw:
+                type: keyword
           DATE_NAISSANCE_NORM:
             type: date
             format: yyyyMMdd
@@ -113,6 +116,9 @@ datasets:
             index_prefixes:
               min_chars: 4
               max_chars: 6
+            fields:
+              raw:
+                type: keyword
           DATE_DECES_NORM:
             type: date
             format: yyyyMMdd
