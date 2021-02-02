@@ -1,8 +1,9 @@
 name: Index full data
 
 on:
-  schedule:
-    - cron: "3 * * * *"
+  push:
+    branches:
+      - master
 
 jobs:
   build:
