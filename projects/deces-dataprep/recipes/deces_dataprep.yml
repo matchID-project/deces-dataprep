@@ -3,7 +3,8 @@ recipes:
     test_chunk_size: 100
     write_queue_length: !ENV ${RECIPE_QUEUE}
     input: deces_src
-    output: deces_index
+    output:
+      dataset: deces_index
     threads: !ENV ${RECIPE_THREADS}
     steps:
       - normalize:
@@ -11,6 +12,7 @@ recipes:
       - exec:
         # tag dataset and records with uniq id
           - "df['UID'] = df.apply(lambda row:  base64.urlsafe_b64encode(blake3(str(tuple(row)).encode('utf-8')).digest()), axis=1).str.slice(stop=12)"
+          - df['_id'] = df['UID']
           - df['SOURCE'] = str(desc['source']['name'])
           - df['SOURCE_LINE'] = 1+df.index
       - replace:
