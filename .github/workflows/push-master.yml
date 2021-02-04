@@ -41,7 +41,7 @@ jobs:
         if: success()
         run: |
           make clean remote-all GIT_BRANCH="$GIT_BRANCH" \
-            CHUNK_SIZE=75000 ES_THREADS=48 RECIPE_THREADS=60 ES_MEM=48000m RECIPE_QUEUE=64 SCW_FLAVOR=GP1-XL;
+            CHUNK_SIZE=75000 ES_THREADS=42 RECIPE_THREADS=56 ES_MEM=48000m RECIPE_QUEUE=64 SCW_FLAVOR=GP1-XL;
         env:
           VERBOSE: True
           GIT_BRANCH: ${{ steps.extract_branch.outputs.branch }}
