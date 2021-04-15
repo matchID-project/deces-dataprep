@@ -40,7 +40,8 @@ jobs:
         if: success()
         run: |
           make clean remote-all GIT_BRANCH="$GIT_BRANCH" \
-            CHUNK_SIZE=75000 ES_THREADS=48 RECIPE_THREADS=60 ES_MEM=48000m RECIPE_QUEUE=64 SCW_FLAVOR=GP1-XL;
+            CHUNK_SIZE=75000 ES_THREADS=48 RECIPE_THREADS=60 ES_MEM=48000m RECIPE_QUEUE=64 \
+            SCW_FLAVOR=GP1-XL SLACK_TITLE="deces-dataprep - full" SLACK_WEBHOOK="$SLACK_WEBHOOK";
         env:
           VERBOSE: True
           GIT_BRANCH: ${{ steps.extract_branch.outputs.branch }}
@@ -53,10 +54,4 @@ jobs:
           STORAGE_ACCESS_KEY: ${{ secrets.STORAGE_ACCESS_KEY }}
           STORAGE_SECRET_KEY: ${{ secrets.STORAGE_SECRET_KEY }}
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
-      - name: Slack notification
-        if: success()
-        run: "curl -X POST --data-urlencode 'payload={\"channel\": \"#matchid\", \"username\": \"matchid-bot\", \"attachments\": [{\"fallback\":\"${SLACK_TITLE}\",\"pretext\":\"${SLACK_TITLE}\",\"color\":\"#D00000\",\"fields\":[{\"title\":\"Remarques\",\"value\":\"${SLACK_MSG}\",\"short\":false}]}], \"icon_url\": \"https://github.com/matchID-project/matchID-project.github.io/raw/master/assets/images/logo-square.png\"}' https://hooks.slack.com/services/${SLACK_WEBHOOK}"
-        env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          SLACK_TITLE: "New data at <https://www.data.gouv.fr/fr/datasets/fichier-des-personnes-decedees/|data.gouv.fr>"
-          SLACK_MSG: "Repository: deces-dataprep - workflow: full.yml"
