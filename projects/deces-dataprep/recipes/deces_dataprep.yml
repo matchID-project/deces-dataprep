@@ -157,17 +157,11 @@ recipes:
             CODE_INSEE_NAISSANCE_NORM: insee_code
           select:
             CODE_INSEE_NAISSANCE_HISTORIQUE: insee_code_history
+            CODE_POSTAL_NAISSANCE: Code postal
             COMMUNE_NAISSANCE_REF: name
             COMMUNE_NAISSANCE_ALTER: newest_name
             DEPARTEMENT_NAISSANCE: dep_code
             GEOPOINT_NAISSANCE: geopoint_2d
-      - join:
-          dataset: french_postcodes
-          type: in_memory
-          strict:
-            CODE_INSEE_NAISSANCE_NORM: Code_commune_INSEE
-          select:
-            CODE_POSTAL_NAISSANCE: Code_postal
       - exec:
         - df['COMMUNE_NAISSANCE'] = df['COMMUNE_NAISSANCE'].astype('str').str.title()
       - replace:
@@ -203,6 +197,11 @@ recipes:
               df['COMMUNE_NAISSANCE'].str.split("/"),
               df['COMMUNE_NAISSANCE']
             )
+          - df['CODE_POSTAL_NAISSANCE'] = np.where(
+              df['CODE_POSTAL_NAISSANCE'].str.contains('"'),
+              df['CODE_POSTAL_NAISSANCE'].replace('[^AB0-9,]','',regex=True).str.split(','),
+              df['CODE_POSTAL_NAISSANCE']
+            )
       - exec: >
           df['DEPARTEMENT_NAISSANCE'] = np.where(
             df['DEPARTEMENT_NAISSANCE'] == "",
@@ -217,9 +216,9 @@ recipes:
           select: CODE_INSEE_NAISSANCE_NORM|COMMUNE_NAISSANCE_(REF|ALL)
       - exec: >
           df['CODE_INSEE_NAISSANCE_HISTORIQUE'] = np.where(
-                df['CODE_INSEE_NAISSANCE_HISTORIQUE'] .str.contains('"'),
+                df['CODE_INSEE_NAISSANCE_HISTORIQUE'].str.contains('"'),
                 np.where(
-                  df['CODE_INSEE_NAISSANCE_HISTORIQUE'] .str.contains(','),
+                  df['CODE_INSEE_NAISSANCE_HISTORIQUE'].str.contains(','),
                   df['CODE_INSEE_NAISSANCE_HISTORIQUE'].replace('[^AB0-9,]','',regex=True).str.split(','),
                   df['CODE_INSEE_NAISSANCE_HISTORIQUE'].replace('[^AB0-9]','',regex=True)
                 ),
@@ -288,17 +287,11 @@ recipes:
             CODE_INSEE_DECES_NORM: insee_code
           select:
             CODE_INSEE_DECES_HISTORIQUE: insee_code_history
+            CODE_POSTAL_DECES: Code postal
             COMMUNE_DECES: name
             COMMUNE_DECES_ALTER: newest_name
             DEPARTEMENT_DECES: dep_code
             GEOPOINT_DECES: geopoint_2d
-      - join:
-          dataset: french_postcodes
-          type: in_memory
-          strict:
-            CODE_INSEE_DECES_NORM: Code_commune_INSEE
-          select:
-            CODE_POSTAL_DECES: Code_postal
       - exec:
           - df['COMMUNE_DECES'] = np.where(
                 df['COMMUNE_DECES'] == df['COMMUNE_DECES_ALTER'],
@@ -318,6 +311,11 @@ recipes:
               df['COMMUNE_DECES'].str.contains("/"),
               df['COMMUNE_DECES'].str.split("/"),
               df['COMMUNE_DECES']
+            )
+          - df['CODE_POSTAL_DECES'] = np.where(
+              df['CODE_POSTAL_DECES'].str.contains('"'),
+              df['CODE_POSTAL_DECES'].replace('[^AB0-9,]','',regex=True).str.split(','),
+              df['CODE_POSTAL_DECES']
             )
       - exec: >
           df['CODE_INSEE_DECES_HISTORIQUE'] = np.where(
