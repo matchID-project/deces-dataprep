@@ -96,6 +96,9 @@ datasets:
           CODE_INSEE_NAISSANCE:
             type: keyword
             normalizer: norm
+          CODE_POSTAL_NAISSANCE:
+            type: keyword
+            normalizer: norm
           CODE_INSEE_NAISSANCE_HISTORIQUE:
             type: keyword
             normalizer: norm
@@ -132,6 +135,9 @@ datasets:
                 type: keyword
                 normalizer: norm
           CODE_INSEE_DECES:
+            type: keyword
+            normalizer: norm
+          CODE_POSTAL_DECES:
             type: keyword
             normalizer: norm
           CODE_INSEE_DECES_HISTORIQUE:
