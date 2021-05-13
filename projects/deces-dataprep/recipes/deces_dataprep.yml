@@ -161,6 +161,13 @@ recipes:
             COMMUNE_NAISSANCE_ALTER: newest_name
             DEPARTEMENT_NAISSANCE: dep_code
             GEOPOINT_NAISSANCE: geopoint_2d
+      - join:
+          dataset: french_postcodes
+          type: in_memory
+          strict:
+            CODE_INSEE_NAISSANCE_NORM: Code_commune_INSEE
+          select:
+            CODE_POSTAL_NAISSANCE: Code_postal
       - exec:
         - df['COMMUNE_NAISSANCE'] = df['COMMUNE_NAISSANCE'].astype('str').str.title()
       - replace:
@@ -285,6 +292,13 @@ recipes:
             COMMUNE_DECES_ALTER: newest_name
             DEPARTEMENT_DECES: dep_code
             GEOPOINT_DECES: geopoint_2d
+      - join:
+          dataset: french_postcodes
+          type: in_memory
+          strict:
+            CODE_INSEE_DECES_NORM: Code_commune_INSEE
+          select:
+            CODE_POSTAL_DECES: Code_postal
       - exec:
           - df['COMMUNE_DECES'] = np.where(
                 df['COMMUNE_DECES'] == df['COMMUNE_DECES_ALTER'],
