@@ -28,14 +28,23 @@ recipes:
           NOM: NOM_PRENOMS
           PRENOMS: NOM_PRENOMS
           PRENOM: NOM_PRENOMS
+      # Tag RGPD oppositions
+      - join:
+          dataset: oppositions_rgpd
+          type: in_memory
+          strict:
+            CODE_INSEE_DECES: Code du lieu de décès
+            DATE_DECES: Date de décès
+            NUM_DECES: "Numéro d'acte de décès"
+          select:
+            OPPOSITION_RGPD: "Numéro d'acte de décès"
+      #####
       #filter invalid chars (resulting in utf8 bugs)
-      #sexe
-      - exec: >
-          df['SEXE']=np.where(
-            df['SEXE'] == '2',
-            "F",
-            "M"
-          )
+      #sexe, and remove RGPD oppositions
+      - exec:
+          - df.drop(df[df['OPPOSITION_RGPD']!=""].index, inplace=True)
+          - df.drop('OPPOSITION_RGPD', axis=1, inplace=True)
+          - df['SEXE']=np.where(df['SEXE'] == '2',"F","M")
       #nom prénoms
       - replace:
           select: NOM$

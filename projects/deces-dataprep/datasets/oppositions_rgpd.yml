@@ -1,0 +1,9 @@
+datasets:
+  oppositions_rgpd:
+    # death people reference (fake - test sample)
+    # fixed with format with no header
+    connector: !ENV ${DATAGOUV_CONNECTOR}
+    table: fichier-opposition-deces.csv
+    type: csv
+    encoding: utf8
+    sep: ";"
