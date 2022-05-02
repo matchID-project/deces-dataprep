@@ -13,6 +13,7 @@ export MAKEBIN = $(shell which make)
 export MAKE = ${MAKEBIN} --no-print-directory -s
 export ES_NODES=1
 export ES_MEM=1024m
+export ES_VERSION = 8.1.3
 export ERR_MAX=20
 export ES_PRELOAD=[]
 export CHUNK_SIZE=10000
