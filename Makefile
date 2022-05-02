@@ -1,6 +1,6 @@
 SHELL=/bin/bash
 
-export DATAPREP_VERSION := $(shell cat projects/deces-dataprep/recipes/deces_dataprep.yml projects/deces-dataprep/datasets/deces_index.yml  | sha1sum | awk '{print $1}' | cut -c-8)
+export DATAPREP_VERSION := $(shell cat Makefile projects/deces-dataprep/recipes/deces_dataprep.yml projects/deces-dataprep/datasets/deces_index.yml  | sha1sum | awk '{print $1}' | cut -c-8)
 export APP=deces-dataprep
 export PWD := $(shell pwd)
 export APP_PATH=${PWD}
