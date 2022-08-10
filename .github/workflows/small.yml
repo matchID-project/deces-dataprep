@@ -1,6 +1,8 @@
 name: Index deces-2020-m01.txt.gz and deaths.txt.gz
 
 on:
+  schedule:
+    - cron: "0 0 * * 0"
   push:
     branches:
       - dev
