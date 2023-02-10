@@ -13,7 +13,7 @@ export MAKEBIN = $(shell which make)
 export MAKE = ${MAKEBIN} --no-print-directory -s
 export ES_NODES=1
 export ES_MEM=1024m
-export ES_VERSION = 8.1.3
+export ES_VERSION = 8.6.1
 export ERR_MAX=20
 export ES_PRELOAD=[]
 export CHUNK_SIZE=10000
@@ -33,7 +33,7 @@ export BACKUP_CHECK=${PWD}/backup-check
 # files to sync:
 export FILES_TO_SYNC=fichier-opposition-deces.csv|deces-.*.txt(.gz)?
 # files to process:
-export FILES_TO_PROCESS=deces-([0-9]{4}|2022-m[0-9]{2}).txt.gz
+export FILES_TO_PROCESS=deces-([0-9]{4}|2023-m[0-9]{2}).txt.gz
 export SSHID=matchid@matchid.project.gmail.com
 export SSHKEY_PRIVATE = ${HOME}/.ssh/id_rsa_${APP}
 export SSHKEY = ${SSHKEY_PRIVATE}.pub
