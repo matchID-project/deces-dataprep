@@ -32,6 +32,7 @@ export DATA_TAG=${PWD}/data-tag
 export BACKUP_CHECK=${PWD}/backup-check
 # files to sync:
 export FILES_TO_SYNC=fichier-opposition-deces.csv|deces-.*.txt(.gz)?
+export FILES_TO_SYNC_FORCE=fichier-opposition-deces.csv
 # files to process:
 export FILES_TO_PROCESS=deces-([0-9]{4}|2023-m[0-9]{2}).txt.gz
 export SSHID=matchid@matchid.project.gmail.com
@@ -59,7 +60,7 @@ config: ${GIT_BACKEND}
 datagouv-to-storage: config
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} datagouv-to-storage \
 		DATAGOUV_DATASET=${DATAGOUV_DATASET} STORAGE_BUCKET=${STORAGE_BUCKET}\
-		FILES_PATTERN='${FILES_TO_SYNC}' &&\
+		FILES_PATTERN='${FILES_TO_SYNC}' FILES_PATTERN_FORCE='${FILES_TO_SYNC_FORCE}' &&\
 	touch datagouv-to-storage
 
 datagouv-to-s3: datagouv-to-storage
@@ -68,7 +69,7 @@ datagouv-to-s3: datagouv-to-storage
 datagouv-to-upload:
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} datagouv-get-files \
 		DATAGOUV_DATASET=${DATAGOUV_DATASET} DATA_DIR=${APP_PATH}/${GIT_BACKEND}/upload\
-		FILES_PATTERN='${FILES_TO_SYNC}' &&\
+		FILES_PATTERN='${FILES_TO_SYNC}' FILES_PATTERN_FORCE='${FILES_TO_SYNC_FORCE}' &&\
 	touch datagouv-to-upload
 
 ${DATA_TAG}: config
