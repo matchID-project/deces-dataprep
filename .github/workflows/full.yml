@@ -2,14 +2,44 @@ name: Index full data
 
 on:
   schedule:
-    - cron: "0 12 * * *"
+    - cron: "0 * * * *"
   workflow_dispatch:
 
+concurrency:
+  group: hourly-workflow # Assurez-vous que ce nom est unique pour ce workflow
+  cancel-in-progress: true
+
 jobs:
+  check-previous-failure:
+    runs-on: ubuntu-latest
+    outputs:
+      should-skip: ${{ steps.skip-check.outputs.should-skip }}
+    steps:
+      - name: Check last workflow run status
+        id: skip-check
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const { data: runs } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'main.yml', // Replace with your workflow file name
+            });
+            const lastRun = runs.workflow_runs.find(run => run.head_branch === context.ref.replace('refs/heads/', ''));
+            if (lastRun && lastRun.conclusion === 'failure') {
+              console.log("Previous workflow run failed. Skipping this run.");
+              core.setOutput('should-skip', 'true');
+            } else {
+              console.log("Previous workflow run did not fail. Continuing with this run.");
+              core.setOutput('should-skip', 'false');
+            }
+
   build:
     name: remotely, large datasets
+    needs: check-previous-failure
+    if: needs.check-previous-failure.outputs.should-skip == 'false'
     runs-on: ubuntu-latest
-
+    timeout-minutes: 50  # Timeout réglé à 50 minutes
     steps:
       - uses: actions/checkout@v1
       - name: Extract branch name
