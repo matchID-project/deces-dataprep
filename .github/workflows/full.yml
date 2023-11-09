@@ -12,6 +12,7 @@ concurrency:
 jobs:
   check-previous-failure:
     runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
     outputs:
       should-skip: ${{ steps.skip-check.outputs.should-skip }}
     steps:
@@ -23,7 +24,7 @@ jobs:
             const { data: runs } = await github.rest.actions.listWorkflowRuns({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'main.yml', // Replace with your workflow file name
+              workflow_id: 'full.yml',
             });
             const lastRun = runs.workflow_runs.find(run => run.head_branch === context.ref.replace('refs/heads/', ''));
             if (lastRun && lastRun.conclusion === 'failure') {
@@ -37,7 +38,7 @@ jobs:
   build:
     name: remotely, large datasets
     needs: check-previous-failure
-    if: needs.check-previous-failure.outputs.should-skip == 'false'
+    if: needs.check-previous-failure.outputs.should-skip == 'false' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 50  # Timeout réglé à 50 minutes
     steps:
