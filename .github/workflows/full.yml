@@ -12,12 +12,12 @@ concurrency:
 jobs:
   check-previous-failure:
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule'
     outputs:
       should-skip: ${{ steps.skip-check.outputs.should-skip }}
     steps:
       - name: Check last workflow run status
         id: skip-check
+        if: github.event_name == 'schedule'
         uses: actions/github-script@v5
         with:
           script: |
@@ -26,14 +26,16 @@ jobs:
               repo: context.repo.repo,
               workflow_id: 'full.yml',
             });
-            const lastRun = runs.workflow_runs.find(run => run.head_branch === context.ref.replace('refs/heads/', ''));
-            if (lastRun && lastRun.conclusion === 'failure') {
-              console.log("Previous workflow run failed. Skipping this run.");
-              core.setOutput('should-skip', 'true');
-            } else {
-              console.log("Previous workflow run did not fail. Continuing with this run.");
-              core.setOutput('should-skip', 'false');
+            let shouldSkip = 'false';
+            if (github.event_name == 'schedule') {
+              const lastRun = runs.workflow_runs.find(run => run.head_branch === context.ref.replace('refs/heads/', ''));
+              if (lastRun && lastRun.conclusion === 'failure') {
+                console.log("Le dernier run du workflow a échoué. On saute ce run.");
+                shouldSkip = 'true';
+              }
             }
+            core.setOutput('should-skip', shouldSkip);
+
 
   build:
     name: remotely, large datasets
