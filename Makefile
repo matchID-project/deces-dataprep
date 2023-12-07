@@ -49,6 +49,7 @@ EC2_TIMEOUT= 120
 CLOUD=SCW
 SSHOPTS=-o "StrictHostKeyChecking no" -i ${SSHKEY} ${CLOUD_SSHOPTS}
 RCLONE_OPTS=--s3-acl=public-read
+export SCW_IMAGE_ID=f3a3ef5b-ea03-4260-b122-3998cd34871b
 
 dummy               := $(shell touch artifacts)
 include ./artifacts
