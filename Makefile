@@ -31,8 +31,8 @@ export BACKUP_DIR = ${PWD}/${GIT_BACKEND}/backup
 export DATA_TAG=${PWD}/data-tag
 export BACKUP_CHECK=${PWD}/backup-check
 # files to sync:
-export FILES_TO_SYNC=fichier-opposition-deces.csv|deces-.*.txt(.gz)?
-export FILES_TO_SYNC_FORCE=fichier-opposition-deces.csv
+export FILES_TO_SYNC=fichier-opposition-deces.csv(.gz)?|deces-.*.txt(.gz)?
+export FILES_TO_SYNC_FORCE=fichier-opposition-deces.csv(.gz)?
 # files to process:
 export FILES_TO_PROCESS=deces-([0-9]{4}|2023-m[0-9]{2}).txt.gz
 export SSHID=matchid@matchid.project.gmail.com
