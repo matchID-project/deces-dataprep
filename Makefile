@@ -48,6 +48,7 @@ EC2_SERVER_FILE_ID=${PWD}/ec2.id
 EC2_TIMEOUT= 120
 CLOUD=SCW
 SSHOPTS=-o "StrictHostKeyChecking no" -i ${SSHKEY} ${CLOUD_SSHOPTS}
+RCLONE_OPTS=--s3-acl=public-read
 
 dummy               := $(shell touch artifacts)
 include ./artifacts
