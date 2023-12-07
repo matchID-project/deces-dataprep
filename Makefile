@@ -49,6 +49,8 @@ EC2_TIMEOUT= 120
 CLOUD=SCW
 SSHOPTS=-o "StrictHostKeyChecking no" -i ${SSHKEY} ${CLOUD_SSHOPTS}
 RCLONE_OPTS=--s3-acl=public-read
+export SCW_VOLUME_SIZE=50000000000
+#export SCW_IMAGE_ID=eda566fc-dad6-417a-84fd-d74c26bd95a9
 
 dummy               := $(shell touch artifacts)
 include ./artifacts
@@ -275,4 +277,27 @@ remote-all: full-check
 	@if [ ! -f "no-remote" ];then\
 		${MAKE} remote-config remote-deploy remote-step1 remote-watch remote-step2 remote-clean;\
 	fi
+
+
+# optimize delays
+remote-docker-pull-base: config remote-config remote-deploy
+	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-docker-pull DOCKER_IMAGE=python:3.9-slim-bullseye
+	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-docker-pull DOCKER_IMAGE=docker.elastic.co/elasticsearch/elasticsearch:${ES_VERSION}
+
+update-base-image: remote-docker-pull-base
+	@\
+	APP_VERSION=$$(cd ${APP_PATH}/${GIT_BACKEND} && make version | awk '{print $$NF}');\
+	${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-cmd REMOTE_CMD="sync"; \
+	${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-cmd REMOTE_CMD="rm -rf ${APP_GROUP}"; \
+	sleep 5;\
+	${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} SCW-instance-snapshot \
+		GIT_BRANCH=${GIT_BRANCH} APP=${APP} APP_VERSION=$${APP_VERSION} CLOUD_TAG=$${APP_VERSION}\
+		DC_IMAGE_NAME=${DC_PREFIX};\
+	${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} SCW-instance-image \
+		CLOUD_APP=dataprep;\
+	SCW_IMAGE_ID=$$(cat ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS}/cloud/SCW.image.id)/;\
+	cat ${APP_PATH}/Makefile | sed "s/^export SCW_IMAGE_ID=.*/export SCW_IMAGE_ID=$${SCW_IMAGE_ID}" \
+		> ${APP_PATH}/Makefile.tmp && mv ${APP_PATH}/Makefile.tmp ${APP_PATH}/Makefile;\
+	${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-clean;\
+	git add Makefile && git commit -m '⬆️  update SCW_IMAGE_ID'
 
