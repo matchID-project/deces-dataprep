@@ -74,8 +74,8 @@ jobs:
         if: success()
         run: |
           make clean remote-all GIT_BRANCH="$GIT_BRANCH" \
-            CHUNK_SIZE=5000 ES_THREADS=8 RECIPE_THREADS=8 ES_MEM=8000m RECIPE_QUEUE=10 \
-            SCW_FLAVOR=GP1-S SLACK_TITLE="deces-dataprep - full" SLACK_WEBHOOK="$SLACK_WEBHOOK";
+            CHUNK_SIZE=30000 ES_THREADS=24 RECIPE_THREADS=24 ES_MEM=32000m RECIPE_QUEUE=32 SCW_FLAVOR=PRO2-L;\
+            SLACK_TITLE="deces-dataprep - full" SLACK_WEBHOOK="$SLACK_WEBHOOK";
         env:
           VERBOSE: True
           GIT_BRANCH: ${{ steps.extract_branch.outputs.branch }}
