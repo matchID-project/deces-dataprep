@@ -74,10 +74,17 @@ jobs:
         if: success()
         run: |
           make clean remote-all GIT_BRANCH="$GIT_BRANCH" \
-            CHUNK_SIZE=30000 ES_THREADS=24 RECIPE_THREADS=24 ES_MEM=32000m RECIPE_QUEUE=32 SCW_FLAVOR=PRO2-L;\
+            CHUNK_SIZE=$CHUNK_SIZE ES_THREADS=$ES_THREADS RECIPE_THREADS=$RECIPE_THREADS ES_MEM=$ES_MEM RECIPE_QUEUE=$RECIPE_QUEUE SCW_FLAVOR=$SCW_FLAVOR SCW_VOLUME_TYPE=$SCW_VOLUME_TYPE;\
             SLACK_TITLE="deces-dataprep - full" SLACK_WEBHOOK="$SLACK_WEBHOOK";
         env:
           VERBOSE: True
+          SCW_FLAVOR: GP1-XS
+          SCW_VOLUME_TYPE: l_ssd
+          CHUNK_SIZE: 30000
+          ES_THREADS: 24
+          RECIPE_THREADS: 24
+          ES_MEM: 32000m
+          RECIPE_QUEUE: 32
           GIT_BRANCH: ${{ steps.extract_branch.outputs.branch }}
           remote_http_proxy: ${{ secrets.remote_http_proxy }}
           remote_https_proxy: ${{ secrets.remote_https_proxy }}
