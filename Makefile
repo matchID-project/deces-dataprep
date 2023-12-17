@@ -11,6 +11,7 @@ export GIT_BACKEND = backend
 export GIT_TOOLS = tools
 export MAKEBIN = $(shell which make)
 export MAKE = ${MAKEBIN} --no-print-directory -s
+export ES_INDEX=deces
 export ES_NODES=1
 export ES_MEM=1024m
 export ES_VERSION = 8.6.1
@@ -26,10 +27,13 @@ export DATAGOUV_API = https://www.data.gouv.fr/api/1/datasets
 export DATAGOUV_DATASET = fichier-des-personnes-decedees
 export DATAGOUV_CONNECTOR = s3
 export STORAGE_BUCKET=${DATAGOUV_DATASET}
+export REPOSITORY_BUCKET=${DATAGOUV_DATASET}-elasticsearch
 export DATA_DIR=${PWD}/data
 export BACKUP_DIR = ${PWD}/${GIT_BACKEND}/backup
 export DATA_TAG=${PWD}/data-tag
+export BACKUP_METHOD=repository
 export BACKUP_CHECK=${PWD}/backup-check
+export REPOSITORY_CHECK=${PWD}/repository-check
 # files to sync:
 export FILES_TO_SYNC=fichier-opposition-deces.csv(.gz)?|deces-.*.txt(.gz)?
 export FILES_TO_SYNC_FORCE=fichier-opposition-deces.csv(.gz)?
@@ -82,19 +86,39 @@ ${DATA_TAG}: config
 
 data-tag: ${DATA_TAG}
 
+dataprep-version:
+	@echo ${DATAPREP_VERSION}
+
 ${BACKUP_CHECK}: data-tag
-	@${MAKE} -s -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} get-catalog CATALOG=${BACKUP_CHECK}\
+	${MAKE} -s -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} get-catalog CATALOG=${BACKUP_CHECK}\
 		DATAGOUV_DATASET=${DATAGOUV_DATASET} STORAGE_BUCKET=${STORAGE_BUCKET}\
 		FILES_PATTERN=esdata_${DATAPREP_VERSION}_$$(cat ${PWD}/data-tag).tar &&\
-	if [ -s ${BACKUP_CHECK} ]; then\
-		echo backup already exist on remote storage;\
+	if [ -s "${BACKUP_CHECK}" ]; then\
+		echo classic backup already exist on remote storage;\
 	else\
-		echo no previous backup found;\
-	fi
+		rm -f "${BACKUP_CHECK}";\
+		echo no previous classic backup found;\
+	fi;\
 
 backup-check: ${BACKUP_CHECK}
 
-check-s3: backup-check
+repository-config: config
+	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch-repository-config\
+		REPOSITORY_BUCKET=${REPOSITORY_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
+		${MAKEOVERRIDES} && touch repository-config
+
+${REPOSITORY_CHECK}: repository-config data-tag
+	@ES_BACKUP_NAME=esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG});\
+	${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch-repository-check\
+		REPOSITORY_BUCKET=${REPOSITORY_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
+		${MAKEOVERRIDES} ES_BACKUP_NAME=$${ES_BACKUP_NAME} \
+		| egrep -q "^snapshot found"\
+		&& echo "snapshot found for or $${ES_BACKUP_NAME} in elasticsearch repository" && (echo "$${ES_BACKUP_NAME}" > "${REPOSITORY_CHECK}") \
+		|| (echo "no snapshot found for $${ES_BACKUP_NAME} elasticsearch repository")
+
+repository-check: ${REPOSITORY_CHECK}
+
+check-s3: ${BACKUP_METHOD}-check
 	touch check-s3
 
 check-upload:
@@ -134,10 +158,10 @@ up:
 recipe-run: data-tag
 	@if [ ! -f recipe-run ];then\
 		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch ES_NODES=${ES_NODES} ES_MEM=${ES_MEM} ${MAKEOVERRIDES};\
-		echo running recipe on data $$(cat ${DATA_TAG}), dataprep ${DATAPREP_VERSION};\
+		echo running recipe on data FILES_TO_PROCESS="${FILES_TO_PROCESS}" $$(cat ${DATA_TAG}), dataprep ${DATAPREP_VERSION};\
 		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} version;\
 		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} recipe-run \
-			RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE}\
+			CHUNK_SIZE=${CHUNK_SIZE} RECIPE=${RECIPE} RECIPE_THREADS=${RECIPE_THREADS} RECIPE_QUEUE=${RECIPE_QUEUE} \
 			ES_PRELOAD='${ES_PRELOAD}' ES_THREADS=${ES_THREADS} \
 			STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
 			${MAKEOVERRIDES} \
@@ -148,9 +172,9 @@ recipe-run: data-tag
 	fi
 
 full-check: datagouv-to-${DATAGOUV_CONNECTOR} check-${DATAGOUV_CONNECTOR}
-	@if [ -s backup-check ]; then\
+	@if [ -s ${BACKUP_METHOD}-check -a -z "${NO_CHECK}"]; then\
 		echo recipe has already been runned on full and saved on remote storage;\
-		touch recipe-run watch-run backup backup-push no-remote;\
+		touch recipe-run watch-run backup backup-push repository-push no-remote;\
 	fi
 
 full: full-check recipe-run
@@ -176,11 +200,21 @@ watch-run:
 	((egrep -i 'end : run|Ooops' $$LOG_FILE | tail -5) && exit 1) || \
 	egrep 'end : run.*successfully' $$LOG_FILE
 
-elasticsearch-restore: backup-pull
+backup-restore: backup-pull
 	@if [ ! -f "elasticsearch-restore" ];then\
 		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch-restore ES_BACKUP_FILE=esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}).tar \
 			&& (echo esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}).tar > elasticsearch-restore);\
 	fi
+
+repository-restore: repository-check
+	@if [ ! -f "elasticsearch-restore" ];then\
+		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch-repository-restore\
+			REPOSITORY_BUCKET=${REPOSITORY_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
+			ES_INDEX=${ES_INDEX} ES_BACKUP_NAME=esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG})\
+			&& (echo esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}) > elasticsearch-restore);\
+	fi
+
+elasticsearch-restore: ${BACKUP_METHOD}-restore
 
 backup-dir:
 	mkdir -p ${BACKUP_DIR}
@@ -209,6 +243,23 @@ backup-push: data-tag backup
 			echo pushed $$SIZE to storage ${DATAGOUV_DATASET};\
 	fi
 
+repository-push: data-tag
+	@if [ ! -f repository-push ];then\
+		${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch-repository-backup\
+			REPOSITORY_BUCKET=${REPOSITORY_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
+			ES_INDEX=${ES_INDEX} ES_BACKUP_NAME=esdata_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}) && touch repository-push;\
+		fi
+
+repository-backup-tmp: data-tag
+	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch-repository-backup-async\
+		REPOSITORY_BUCKET=${REPOSITORY_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
+		ES_INDEX=${ES_INDEX} ES_BACKUP_NAME=esdata_tmp_${DATAPREP_VERSION}_$$(cat ${DATA_TAG})
+
+respository-cleanse:
+	@(${MAKE} -C ${APP_PATH}/${GIT_BACKEND} elasticsearch-repository-delete\
+		REPOSITORY_BUCKET=${REPOSITORY_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
+		ES_INDEX=${ES_INDEX} ES_BACKUP_NAME=esdata_tmp_${DATAPREP_VERSION}_$$(cat ${DATA_TAG}) > /dev/null 2>&1) || exit 0
+
 down:
 	@if [ -f config ]; then\
 		(${MAKE} -C ${APP_PATH}/${GIT_BACKEND} backend-stop elasticsearch-stop frontend-stop || true);\
@@ -217,7 +268,7 @@ down:
 clean: down
 	@sudo rm -rf ${GIT_BACKEND} frontend ${DATA_DIR} data-tag config \
 		recipe-run backup-check datagouv-to-* check-* elasticsearch-restore watch-run full\
-		backup backup-pull backup-push no-remote
+		backup backup-pull backup-push repository-push repository-config repository-check no-remote
 
 # launch all locally
 # configure
@@ -227,7 +278,7 @@ all-step0: ${GIT_BACKEND} config
 all-step1: full
 
 # second step is backup
-all-step2: backup-push
+all-step2: ${BACKUP_METHOD}-push
 
 all: all-step0 all-step1 watch-run all-step2
 	@echo ended with succes !!!
@@ -237,35 +288,36 @@ all: all-step0 all-step1 watch-run all-step2
 remote-config: config data-tag
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-config\
 		APP=${APP} APP_VERSION=${DATAPREP_VERSION} CLOUD_TAG=data:$$(cat ${DATA_TAG})-prep:${DATAPREP_VERSION}\
-		STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
+		REPOSITORY_BUCKET=${REPOSITORY_BUCKET} STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
+        SCW_FLAVOR=${SCW_FLAVOR} SCW_VOLUME_SIZE=${SCW_VOLUME_SIZE} SCW_VOLUME_TYPE=${SCW_VOLUME_TYPE} \
 		GIT_BRANCH=${GIT_BRANCH} ${MAKEOVERRIDES}
 
 remote-deploy:
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-deploy\
 		APP=${APP} APP_VERSION=${DATAPREP_VERSION} GIT_BRANCH=${GIT_BRANCH} \
-		STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
+		REPOSITORY_BUCKET=${REPOSITORY_BUCKET} STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
 		${MAKEOVERRIDES}
 
 remote-step1:
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-actions\
 		APP=${APP} APP_VERSION=${DATAPREP_VERSION} GIT_BRANCH=${GIT_BRANCH} \
 		ACTIONS="all-step1"\
-		STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
-		${MAKEOVERRIDES}
+		REPOSITORY_BUCKET=${REPOSITORY_BUCKET} STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
+		CHUNK_SIZE=${CHUNK_SIZE} ES_THREADS=${ES_THREADS} RECIPE_THREADS=${RECIPE_THREADS} ES_MEM=${ES_MEM} RECIPE_QUEUE=${RECIPE_QUEUE} \
+		BACKUP_METHOD=${BACKUP_METHOD} ${MAKEOVERRIDES}
 
 remote-watch:
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-actions\
 		APP=${APP} APP_VERSION=${DATAPREP_VERSION} GIT_BRANCH=${GIT_BRANCH} \
 		ACTIONS="watch-run"\
-		STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
 		${MAKEOVERRIDES}
 
 remote-step2:
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-actions\
 		APP=${APP} APP_VERSION=${DATAPREP_VERSION} GIT_BRANCH=${GIT_BRANCH} \
 		ACTIONS="all-step2"\
-		STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
-		${MAKEOVERRIDES}
+		REPOSITORY_BUCKET=${REPOSITORY_BUCKET} STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
+		BACKUP_METHOD=${BACKUP_METHOD} ${MAKEOVERRIDES}
 
 remote-clean:
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-clean\
@@ -273,9 +325,9 @@ remote-clean:
 		${MAKEOVERRIDES}
 	@rm ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS}/configured/*.deployed > /dev/null 2>&1
 
-remote-all: full-check
+remote-all:
 	@if [ ! -f "no-remote" ];then\
-		${MAKE} remote-config remote-deploy remote-step1 remote-watch remote-step2 remote-clean;\
+		${MAKE} remote-config remote-deploy remote-step1 remote-watch remote-step2 remote-clean ${MAKEOVERRIDES};\
 	fi
 
 
@@ -284,17 +336,18 @@ remote-docker-pull-base: config remote-config remote-deploy
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-docker-pull DOCKER_IMAGE=python:3.9-slim-bullseye
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-docker-pull DOCKER_IMAGE=docker.elastic.co/elasticsearch/elasticsearch:${ES_VERSION}
 
-update-base-image: remote-docker-pull-base
+update-base-image: config remote-config remote-deploy remote-docker-pull-base
 	@\
 	APP_VERSION=$$(cd ${APP_PATH}/${GIT_BACKEND} && make version | awk '{print $$NF}');\
+	${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-cmd REMOTE_CMD="sudo apt upgrade -y"; \
 	${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-cmd REMOTE_CMD="sync"; \
-	${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-cmd REMOTE_CMD="rm -rf ${APP_GROUP}"; \
+	${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-cmd REMOTE_CMD="rm -rf ${APP}"; \
 	sleep 5;\
 	${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} SCW-instance-snapshot \
-		GIT_BRANCH=${GIT_BRANCH} APP=${APP} APP_VERSION=$${APP_VERSION} CLOUD_TAG=$${APP_VERSION}\
-		DC_IMAGE_NAME=${DC_PREFIX};\
+		GIT_BRANCH=${GIT_BRANCH} APP=${APP} APP_VERSION=$${APP_VERSION} CLOUD_TAG=data:$$(cat ${DATA_TAG})-prep:${DATAPREP_VERSION}\
+		CLOUD_APP=deces-dataprep;\
 	${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} SCW-instance-image \
-		CLOUD_APP=dataprep;\
+		CLOUD_APP=deces-dataprep;\
 	SCW_IMAGE_ID=$$(cat ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS}/cloud/SCW.image.id)/;\
 	cat ${APP_PATH}/Makefile | sed "s/^export SCW_IMAGE_ID=.*/export SCW_IMAGE_ID=$${SCW_IMAGE_ID}" \
 		> ${APP_PATH}/Makefile.tmp && mv ${APP_PATH}/Makefile.tmp ${APP_PATH}/Makefile;\
