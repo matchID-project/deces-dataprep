@@ -17,7 +17,16 @@ jobs:
       #   uses: mxschmitt/action-tmate@v2
       - name: 🏃 Run small dataset
         #if: steps.extract_branch.outputs.branch == 'master' || steps.extract_branch.outputs.branch == 'dev'
-        run: make all-step0 recipe-run watch-run FILES_TO_PROCESS=deces-2020-m01.txt.gz STORAGE_ACCESS_KEY=$STORAGE_ACCESS_KEY STORAGE_SECRET_KEY=$STORAGE_SECRET_KEY CHUNK_SIZE=5000 ES_THREADS=2 RECIPE_THREADS=2 ES_MEM=4000m
+        run: |
+          make all FILES_TO_PROCESS=${FILES_TO_PROCESS} \
+            REPOSITORY_BUCKET=${REPOSITORY_BUCKET} \
+            CHUNK_SIZE=${CHUNK_SIZE} ES_THREADS=${ES_THREADS} RECIPE_THREADS=${RECIPE_THREADS} ES_MEM=${ES_MEM}
         env:
+          FILES_TO_PROCESS: deces-2020-m01.txt.gz
+          REPOSITORY_BUCKET: fichier-des-personnes-decedees-elasticsearch-dev
+          CHUNK_SIZE: 5000
+          ES_THREADS: 2
+          RECIPE_THREADS: 2
+          ES_MEM: 4000m
           STORAGE_ACCESS_KEY: ${{ secrets.STORAGE_ACCESS_KEY }}
           STORAGE_SECRET_KEY: ${{ secrets.STORAGE_SECRET_KEY }}

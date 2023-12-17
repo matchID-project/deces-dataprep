@@ -70,22 +70,32 @@ jobs:
           SSHPWD: ${{ secrets.SSHPWD }}
           SSHPUB: ${{ secrets.SSHPUB }}
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+      - name: Check
+        if: success()
+        run: make clean full-check GIT_BRANCH=${GIT_BRANCH}
+        env:
+          VERBOSE: True
+          GIT_BRANCH: ${{ steps.extract_branch.outputs.branch }}
+          STORAGE_ACCESS_KEY: ${{ secrets.STORAGE_ACCESS_KEY }}
+          STORAGE_SECRET_KEY: ${{ secrets.STORAGE_SECRET_KEY }}
       - name: Run
         if: success()
         run: |
-          make clean remote-all GIT_BRANCH="$GIT_BRANCH" \
-            CHUNK_SIZE=$CHUNK_SIZE ES_THREADS=$ES_THREADS RECIPE_THREADS=$RECIPE_THREADS ES_MEM=$ES_MEM RECIPE_QUEUE=$RECIPE_QUEUE SCW_FLAVOR=$SCW_FLAVOR SCW_VOLUME_SIZE=$SCW_VOLUME_SIZE SCW_VOLUME_TYPE=$SCW_VOLUME_TYPE;\
+          make remote-all \
+            GIT_BRANCH="$GIT_BRANCH" \
+            SCW_FLAVOR=${SCW_FLAVOR} SCW_VOLUME_SIZE=${SCW_VOLUME_SIZE} SCW_VOLUME_TYPE=${SCW_VOLUME_TYPE} \
+            CHUNK_SIZE=${CHUNK_SIZE} ES_THREADS=${ES_THREADS} RECIPE_THREADS=${RECIPE_THREADS} ES_MEM=${ES_MEM} RECIPE_QUEUE=${RECIPE_QUEUE} \
             SLACK_TITLE="deces-dataprep - full" SLACK_WEBHOOK="$SLACK_WEBHOOK";
         env:
           VERBOSE: True
           SCW_FLAVOR: PRO2-L
           SCW_VOLUME_SIZE: 50000000000
           SCW_VOLUME_TYPE: b_ssd
-          CHUNK_SIZE: 30000
-          ES_THREADS: 24
-          RECIPE_THREADS: 24
-          ES_MEM: 32000m
-          RECIPE_QUEUE: 32
+          CHUNK_SIZE: 75000
+          ES_THREADS: 30
+          RECIPE_THREADS: 32
+          ES_MEM: 62000m
+          RECIPE_QUEUE: 34
           GIT_BRANCH: ${{ steps.extract_branch.outputs.branch }}
           remote_http_proxy: ${{ secrets.remote_http_proxy }}
           remote_https_proxy: ${{ secrets.remote_https_proxy }}
@@ -98,3 +108,4 @@ jobs:
           STORAGE_SECRET_KEY: ${{ secrets.STORAGE_SECRET_KEY }}
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_TITLE: deces-dataprep - full

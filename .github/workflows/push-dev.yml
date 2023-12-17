@@ -1,4 +1,4 @@
-name: Index year
+name: Index year (Push to dev)
 
 on:
   push:
@@ -37,13 +37,41 @@ jobs:
           SSHPWD: ${{ secrets.SSHPWD }}
           SSHPUB: ${{ secrets.SSHPUB }}
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+      - name: Check
+        if: success()
+        run: |
+          make clean full-check \
+            GIT_BRANCH=${GIT_BRANCH} \
+            FILES_TO_PROCESS=${FILES_TO_PROCESS} \
+            REPOSITORY_BUCKET=${REPOSITORY_BUCKET}
+        env:
+          VERBOSE: True
+          FILES_TO_PROCESS: deces-2020-m[0-1][0-9].txt.gz
+          REPOSITORY_BUCKET: fichier-des-personnes-decedees-elasticsearch-dev
+          GIT_BRANCH: ${{ steps.extract_branch.outputs.branch }}
+          STORAGE_ACCESS_KEY: ${{ secrets.STORAGE_ACCESS_KEY }}
+          STORAGE_SECRET_KEY: ${{ secrets.STORAGE_SECRET_KEY }}
       - name: Run
         if: success()
         run: |
-          make clean remote-all GIT_BRANCH="$GIT_BRANCH" FILES_TO_PROCESS=deces-2020-m[0-1][0-9].txt.gz \
-            CHUNK_SIZE=50000 ES_THREADS=10 RECIPE_THREADS=16 ES_MEM=24000m RECIPE_QUEUE=16 SCW_FLAVOR=GP1-M;
+          make remote-all \
+            GIT_BRANCH="$GIT_BRANCH" \
+            FILES_TO_PROCESS=${FILES_TO_PROCESS} \
+            REPOSITORY_BUCKET=${REPOSITORY_BUCKET} \
+            SCW_FLAVOR=${SCW_FLAVOR} SCW_VOLUME_SIZE=${SCW_VOLUME_SIZE} SCW_VOLUME_TYPE=${SCW_VOLUME_TYPE} \
+            CHUNK_SIZE=${CHUNK_SIZE} ES_THREADS=${ES_THREADS} RECIPE_THREADS=${RECIPE_THREADS} ES_MEM=${ES_MEM} RECIPE_QUEUE=${RECIPE_QUEUE}
         env:
           VERBOSE: True
+          FILES_TO_PROCESS: deces-2020-m[0-1][0-9].txt.gz
+          REPOSITORY_BUCKET: fichier-des-personnes-decedees-elasticsearch-dev
+          SCW_FLAVOR: PRO2-M
+          SCW_VOLUME_SIZE: 20000000000
+          SCW_VOLUME_TYPE: b_ssd
+          CHUNK_SIZE: 75000
+          ES_THREADS: 14
+          RECIPE_THREADS: 16
+          ES_MEM: 30000m
+          RECIPE_QUEUE: 18
           GIT_BRANCH: ${{ steps.extract_branch.outputs.branch }}
           remote_http_proxy: ${{ secrets.remote_http_proxy }}
           remote_https_proxy: ${{ secrets.remote_https_proxy }}
