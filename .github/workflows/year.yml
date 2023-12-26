@@ -40,10 +40,14 @@ jobs:
       - name: Run
         if: success()
         run: |
-          make clean remote-all GIT_BRANCH="$GIT_BRANCH" FILES_TO_PROCESS=deces-2020-m[0-1][0-9].txt.gz \
+          make clean remote-all \
+            GIT_BRANCH="$GIT_BRANCH" \
+            FILES_TO_PROCESS=${FILES_TO_PROCESS} \
+            REPOSITORY_BUCKET=${REPOSITORY_BUCKET} \
             CHUNK_SIZE=50000 ES_THREADS=10 RECIPE_THREADS=16 ES_MEM=24000m RECIPE_QUEUE=16 SCW_FLAVOR=GP1-M;
         env:
           VERBOSE: True
+          FILES_TO_PROCESS: deces-2020-m[0-1][0-9].txt.gz
           GIT_BRANCH: ${{ steps.extract_branch.outputs.branch }}
           remote_http_proxy: ${{ secrets.remote_http_proxy }}
           remote_https_proxy: ${{ secrets.remote_https_proxy }}
