@@ -21,10 +21,31 @@ jobs:
         id: extract_branch
       # - name: Setup tmate session
       #   uses: mxschmitt/action-tmate@v2
-      - name: 🏃 Run small dataset
-        run:
-          make clean config all recipe-run watch-run FILES_TO_PROCESS=deces-2020-m01.txt.gz STORAGE_ACCESS_KEY=$STORAGE_ACCESS_KEY STORAGE_SECRET_KEY=$STORAGE_SECRET_KEY CHUNK_SIZE=5000 ES_THREADS=2 RECIPE_THREADS=2 ES_MEM=4000m;
-          make clean config all recipe-run watch-run FILES_TO_PROCESS=deaths.txt.gz STORAGE_ACCESS_KEY=$STORAGE_ACCESS_KEY STORAGE_SECRET_KEY=$STORAGE_SECRET_KEY CHUNK_SIZE=5000 ES_THREADS=2 RECIPE_THREADS=2 ES_MEM=4000m;
+      - name: 🏃 Run small dataset 1
+        run: |
+          make clean all FILES_TO_PROCESS=${FILES_TO_PROCESS} \
+            REPOSITORY_BUCKET=${REPOSITORY_BUCKET} \
+            CHUNK_SIZE=${CHUNK_SIZE} ES_THREADS=${ES_THREADS} RECIPE_THREADS=${RECIPE_THREADS} ES_MEM=${ES_MEM}
         env:
+          FILES_TO_PROCESS: deces-2020-m01.txt.gz
+          REPOSITORY_BUCKET: fichier-des-personnes-decedees-elasticsearch-dev
+          CHUNK_SIZE: 5000
+          ES_THREADS: 2
+          RECIPE_THREADS: 2
+          ES_MEM: 4000m
+          STORAGE_ACCESS_KEY: ${{ secrets.STORAGE_ACCESS_KEY }}
+          STORAGE_SECRET_KEY: ${{ secrets.STORAGE_SECRET_KEY }}
+      - name: 🏃 Run small dataset 2
+        run: |
+          make clean all FILES_TO_PROCESS=${FILES_TO_PROCESS} \
+            REPOSITORY_BUCKET=${REPOSITORY_BUCKET} \
+            CHUNK_SIZE=${CHUNK_SIZE} ES_THREADS=${ES_THREADS} RECIPE_THREADS=${RECIPE_THREADS} ES_MEM=${ES_MEM}
+        env:
+          FILES_TO_PROCESS: deaths.txt.gz
+          REPOSITORY_BUCKET: fichier-des-personnes-decedees-elasticsearch-dev
+          CHUNK_SIZE: 5000
+          ES_THREADS: 2
+          RECIPE_THREADS: 2
+          ES_MEM: 4000m
           STORAGE_ACCESS_KEY: ${{ secrets.STORAGE_ACCESS_KEY }}
           STORAGE_SECRET_KEY: ${{ secrets.STORAGE_SECRET_KEY }}

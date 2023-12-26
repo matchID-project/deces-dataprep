@@ -40,10 +40,21 @@ jobs:
       - name: Run
         if: success()
         run: |
-          make clean remote-all GIT_BRANCH="$GIT_BRANCH" FILES_TO_PROCESS=deces-2020-m[0-1][0-9].txt.gz \
-            CHUNK_SIZE=50000 ES_THREADS=10 RECIPE_THREADS=16 ES_MEM=24000m RECIPE_QUEUE=16 SCW_FLAVOR=GP1-M;
+          make clean remote-all \
+            GIT_BRANCH=${GIT_BRANCH} \
+            FILES_TO_PROCESS=${FILES_TO_PROCESS} \
+            REPOSITORY_BUCKET=${REPOSITORY_BUCKET} \
+            CHUNK_SIZE=${CHUNK_SIZE} ES_THREADS=${ES_THREADS} RECIPE_THREADS=${RECIPE_THREADS} ES_MEM=${ES_MEM} RECIPE_QUEUE=${RECIPE_QUEUE}
         env:
           VERBOSE: True
+          FILES_TO_PROCESS: deces-2020-m[0-1][0-9].txt.gz
+          REPOSITORY_BUCKET: fichier-des-personnes-decedees-elasticsearch-dev
+          CHUNK_SIZE: 50000
+          ES_THREADS: 10
+          RECIPE_THREADS: 16
+          ES_MEM: 24000m
+          RECIPE_QUEUE: 16
+          SCW_FLAVOR: GP1-M
           GIT_BRANCH: ${{ steps.extract_branch.outputs.branch }}
           remote_http_proxy: ${{ secrets.remote_http_proxy }}
           remote_https_proxy: ${{ secrets.remote_https_proxy }}
