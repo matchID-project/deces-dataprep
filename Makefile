@@ -2,6 +2,7 @@ SHELL=/bin/bash
 
 export DATAPREP_VERSION := $(shell cat Makefile projects/deces-dataprep/recipes/deces_dataprep.yml projects/deces-dataprep/datasets/deces_index.yml  | sha1sum | awk '{print $1}' | cut -c-8)
 export APP=deces-dataprep
+export APP_GROUP=matchID
 export PWD := $(shell pwd)
 export APP_PATH=${PWD}
 export GIT = $(shell which git)
@@ -53,8 +54,10 @@ EC2_TIMEOUT= 120
 CLOUD=SCW
 SSHOPTS=-o "StrictHostKeyChecking no" -i ${SSHKEY} ${CLOUD_SSHOPTS}
 RCLONE_OPTS=--s3-acl=public-read
+export SCW_FLAVOR=PRO2-M
+export SCW_VOLUME_TYPE=b_ssd
 export SCW_VOLUME_SIZE=50000000000
-#export SCW_IMAGE_ID=eda566fc-dad6-417a-84fd-d74c26bd95a9
+export SCW_IMAGE_ID=3043c0c8-d413-4d2e-b9c5-1dbb02fbdcb5
 
 dummy               := $(shell touch artifacts)
 include ./artifacts
@@ -289,7 +292,7 @@ remote-config: config data-tag
 	@${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-config\
 		APP=${APP} APP_VERSION=${DATAPREP_VERSION} CLOUD_TAG=data:$$(cat ${DATA_TAG})-prep:${DATAPREP_VERSION}\
 		REPOSITORY_BUCKET=${REPOSITORY_BUCKET} STORAGE_BUCKET=${STORAGE_BUCKET} STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY} STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}\
-        SCW_FLAVOR=${SCW_FLAVOR} SCW_VOLUME_SIZE=${SCW_VOLUME_SIZE} SCW_VOLUME_TYPE=${SCW_VOLUME_TYPE} \
+        SCW_IMAGE_ID=${SCW_IMAGE_ID} SCW_FLAVOR=${SCW_FLAVOR} SCW_VOLUME_SIZE=${SCW_VOLUME_SIZE} SCW_VOLUME_TYPE=${SCW_VOLUME_TYPE} \
 		GIT_BRANCH=${GIT_BRANCH} ${MAKEOVERRIDES}
 
 remote-deploy:
@@ -341,7 +344,7 @@ update-base-image: config remote-config remote-deploy remote-docker-pull-base
 	APP_VERSION=$$(cd ${APP_PATH}/${GIT_BACKEND} && make version | awk '{print $$NF}');\
 	${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-cmd REMOTE_CMD="sudo apt upgrade -y"; \
 	${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-cmd REMOTE_CMD="sync"; \
-	${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-cmd REMOTE_CMD="rm -rf ${APP}"; \
+	${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-cmd REMOTE_CMD="rm -rf ${APP_GROUP}"; \
 	sleep 5;\
 	${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} SCW-instance-snapshot \
 		GIT_BRANCH=${GIT_BRANCH} APP=${APP} APP_VERSION=$${APP_VERSION} CLOUD_TAG=data:$$(cat ${DATA_TAG})-prep:${DATAPREP_VERSION}\
@@ -353,4 +356,3 @@ update-base-image: config remote-config remote-deploy remote-docker-pull-base
 		> ${APP_PATH}/Makefile.tmp && mv ${APP_PATH}/Makefile.tmp ${APP_PATH}/Makefile;\
 	${MAKE} -C ${APP_PATH}/${GIT_BACKEND}/${GIT_TOOLS} remote-clean;\
 	git add Makefile && git commit -m '⬆️  update SCW_IMAGE_ID'
-
