@@ -39,7 +39,7 @@ export REPOSITORY_CHECK=${PWD}/repository-check
 export FILES_TO_SYNC=fichier-opposition-deces.csv(.gz)?|deces-.*.txt(.gz)?
 export FILES_TO_SYNC_FORCE=fichier-opposition-deces.csv(.gz)?
 # files to process:
-export FILES_TO_PROCESS=deces-([0-9]{4}|2023-m[0-9]{2}).txt.gz
+export FILES_TO_PROCESS=deces-([0-9]{4}|2024-m[0-9]{2}).txt.gz
 export SSHID=matchid@matchid.project.gmail.com
 export SSHKEY_PRIVATE = ${HOME}/.ssh/id_rsa_${APP}
 export SSHKEY = ${SSHKEY_PRIVATE}.pub
@@ -57,7 +57,7 @@ RCLONE_OPTS=--s3-acl=public-read
 export SCW_FLAVOR=PRO2-M
 export SCW_VOLUME_TYPE=b_ssd
 export SCW_VOLUME_SIZE=50000000000
-export SCW_IMAGE_ID=3043c0c8-d413-4d2e-b9c5-1dbb02fbdcb5
+export SCW_IMAGE_ID=52497223-01c6-4e80-a7e0-020eefdfb127
 
 dummy               := $(shell touch artifacts)
 include ./artifacts
