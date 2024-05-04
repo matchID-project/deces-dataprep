@@ -7,6 +7,8 @@ recipes:
       dataset: deces_index
     threads: !ENV ${RECIPE_THREADS}
     steps:
+      - delete:
+          select: END_OF_LINE
       - normalize:
           select: (NOM_PRENOMS|COMMUNE_NAISSANCE|PAYS_NAISSANCE|NUM_DECES)$
       - exec:
