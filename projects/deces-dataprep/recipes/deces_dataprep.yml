@@ -7,8 +7,6 @@ recipes:
       dataset: deces_index
     threads: !ENV ${RECIPE_THREADS}
     steps:
-      - delete:
-          select: END_OF_LINE
       - normalize:
           select: (NOM_PRENOMS|COMMUNE_NAISSANCE|PAYS_NAISSANCE|NUM_DECES)$
       - exec:
@@ -17,6 +15,11 @@ recipes:
           - df['_id'] = df['UID']
           - df['SOURCE'] = str(desc['source']['name'])
           - df['SOURCE_LINE'] = 1+df.index
+      - replace:
+          select: NUM_DECES
+          regex:
+            - '(.{9}).*': '\1'
+            - '\s*$': ''
       - replace:
           select: SOURCE
           regex:
