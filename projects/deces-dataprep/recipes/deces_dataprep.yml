@@ -7,8 +7,6 @@ recipes:
       dataset: deces_index
     threads: !ENV ${RECIPE_THREADS}
     steps:
-      - delete:
-          select: END_OF_LINE
       - normalize:
           select: (NOM_PRENOMS|COMMUNE_NAISSANCE|PAYS_NAISSANCE|NUM_DECES)$
       - exec:
@@ -17,6 +15,11 @@ recipes:
           - df['_id'] = df['UID']
           - df['SOURCE'] = str(desc['source']['name'])
           - df['SOURCE_LINE'] = 1+df.index
+      - replace:
+          select: NUM_DECES
+          regex:
+            - '(.{9}).*': '\1'
+            - '\s*$': ''
       - replace:
           select: SOURCE
           regex:
@@ -93,8 +96,9 @@ recipes:
          select: DATE.*NORM
          format: "%Y%m%d"
       - exec:
+          # Year = 365.25 * 24 * 60 * 60 seconds
           - df['AGE_DECES'] = np.where(df['DATE_DECES'] > df['DATE_NAISSANCE'],
-            (df['DATE_DECES_NORM'] - df['DATE_NAISSANCE_NORM']).astype('<m8[Y]'),
+            ((df['DATE_DECES_NORM'] - df['DATE_NAISSANCE_NORM']).astype('timedelta64[s]').astype(int) / 31557600).round().astype(int),
             None)
           - df['DATE_NAISSANCE_NORM'] = df['DATE_NAISSANCE_NORM'].dt.strftime('%Y%m%d')
           - df['DATE_DECES_NORM'] = df['DATE_DECES_NORM'].dt.strftime('%Y%m%d')
