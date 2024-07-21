@@ -96,8 +96,9 @@ recipes:
          select: DATE.*NORM
          format: "%Y%m%d"
       - exec:
+          # Year = 365.25 * 24 * 60 * 60 seconds
           - df['AGE_DECES'] = np.where(df['DATE_DECES'] > df['DATE_NAISSANCE'],
-            (df['DATE_DECES_NORM'] - df['DATE_NAISSANCE_NORM']).astype('<m8[Y]'),
+            ((df['DATE_DECES_NORM'] - df['DATE_NAISSANCE_NORM']).astype('timedelta64[s]').astype(int) / 31557600).round().astype(int),
             None)
           - df['DATE_NAISSANCE_NORM'] = df['DATE_NAISSANCE_NORM'].dt.strftime('%Y%m%d')
           - df['DATE_DECES_NORM'] = df['DATE_DECES_NORM'].dt.strftime('%Y%m%d')
