@@ -55,7 +55,7 @@ CLOUD=SCW
 SSHOPTS=-o "StrictHostKeyChecking no" -i ${SSHKEY} ${CLOUD_SSHOPTS}
 RCLONE_OPTS=--s3-acl=public-read
 export SCW_FLAVOR=PRO2-M
-export SCW_VOLUME_TYPE=b_ssd
+export SCW_VOLUME_TYPE=sbs_15k
 export SCW_VOLUME_SIZE=50000000000
 export SCW_IMAGE_ID=52497223-01c6-4e80-a7e0-020eefdfb127
 
