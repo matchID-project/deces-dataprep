@@ -66,7 +66,7 @@ jobs:
           REPOSITORY_BUCKET: fichier-des-personnes-decedees-elasticsearch-dev
           SCW_FLAVOR: PRO2-M
           SCW_VOLUME_SIZE: 20000000000
-          SCW_VOLUME_TYPE: b_ssd
+          SCW_VOLUME_TYPE: sbs_15k
           CHUNK_SIZE: 75000
           ES_THREADS: 14
           RECIPE_THREADS: 16
