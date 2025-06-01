@@ -90,7 +90,7 @@ jobs:
           VERBOSE: True
           SCW_FLAVOR: PRO2-L
           SCW_VOLUME_SIZE: 50000000000
-          SCW_VOLUME_TYPE: sbs_15k
+          SCW_VOLUME_TYPE: sbs_volume
           CHUNK_SIZE: 75000
           ES_THREADS: 30
           RECIPE_THREADS: 32

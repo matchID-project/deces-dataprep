@@ -57,7 +57,7 @@ RCLONE_OPTS=--s3-acl=public-read
 export SCW_FLAVOR=PRO2-M
 export SCW_VOLUME_TYPE=sbs_15k
 export SCW_VOLUME_SIZE=50000000000
-export SCW_IMAGE_ID=52497223-01c6-4e80-a7e0-020eefdfb127
+export SCW_IMAGE_ID=8e7f9833-9787-4488-aea7-819183132acc
 
 dummy               := $(shell touch artifacts)
 include ./artifacts
