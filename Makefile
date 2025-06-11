@@ -36,8 +36,8 @@ export BACKUP_METHOD=repository
 export BACKUP_CHECK=${PWD}/backup-check
 export REPOSITORY_CHECK=${PWD}/repository-check
 # files to sync:
-export FILES_TO_SYNC=fichier-opposition-deces.csv(.gz)?|deces-.*.txt(.gz)?
-export FILES_TO_SYNC_FORCE=fichier-opposition-deces.csv(.gz)?
+export FILES_TO_SYNC=fichier-opposition-deces-.*.csv(.gz)?|deces-.*.txt(.gz)?
+export FILES_TO_SYNC_FORCE=fichier-opposition-deces-.*.csv(.gz)?
 # files to process:
 export FILES_TO_PROCESS=deces-([0-9]{4}|2025-m[0-9]{2}).txt.gz
 export SSHID=matchid@matchid.project.gmail.com
