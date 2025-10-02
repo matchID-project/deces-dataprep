@@ -138,6 +138,7 @@ ${GIT_BACKEND}:
 	@${GIT} clone -q ${GITROOT}/${GIT_BACKEND}
 	@cp artifacts ${GIT_BACKEND}/artifacts
 	@cp docker-compose-local.yml ${GIT_BACKEND}/docker-compose-local.yml
+	@echo "" >> ${GIT_BACKEND}/artifacts
 	@echo "export ES_NODES=${ES_NODES}" >> ${GIT_BACKEND}/artifacts
 	@echo "export PROJECTS=${PWD}/projects" >> ${GIT_BACKEND}/artifacts
 	@echo "export STORAGE_BUCKET=${STORAGE_BUCKET}" >> ${GIT_BACKEND}/artifacts
