@@ -135,7 +135,7 @@ backup-pull: data-tag
 
 ${GIT_BACKEND}:
 	@echo configuring matchID
-	@${GIT} clone -q ${GITROOT}/${GIT_BACKEND}
+	@${GIT} clone -q ${GIT_ROOT}/${GIT_BACKEND}
 	@cp artifacts ${GIT_BACKEND}/artifacts
 	@cp docker-compose-local.yml ${GIT_BACKEND}/docker-compose-local.yml
 	@echo "" >> ${GIT_BACKEND}/artifacts
