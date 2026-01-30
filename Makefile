@@ -6,7 +6,7 @@ export APP_GROUP=matchID
 export PWD := $(shell pwd)
 export APP_PATH=${PWD}
 export GIT = $(shell which git)
-export GITROOT = https://github.com/matchid-project
+export GIT_ROOT = https://github.com/matchid-project
 export GIT_BRANCH = master
 export GIT_BACKEND = backend
 export GIT_TOOLS = tools
@@ -135,9 +135,10 @@ backup-pull: data-tag
 
 ${GIT_BACKEND}:
 	@echo configuring matchID
-	@${GIT} clone -q ${GITROOT}/${GIT_BACKEND}
+	@${GIT} clone -q ${GIT_ROOT}/${GIT_BACKEND}
 	@cp artifacts ${GIT_BACKEND}/artifacts
 	@cp docker-compose-local.yml ${GIT_BACKEND}/docker-compose-local.yml
+	@echo "" >> ${GIT_BACKEND}/artifacts
 	@echo "export ES_NODES=${ES_NODES}" >> ${GIT_BACKEND}/artifacts
 	@echo "export PROJECTS=${PWD}/projects" >> ${GIT_BACKEND}/artifacts
 	@echo "export STORAGE_BUCKET=${STORAGE_BUCKET}" >> ${GIT_BACKEND}/artifacts
