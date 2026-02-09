@@ -39,7 +39,7 @@ export REPOSITORY_CHECK=${PWD}/repository-check
 export FILES_TO_SYNC=fichier-opposition-deces-.*.csv(.gz)?|deces-.*.txt(.gz)?
 export FILES_TO_SYNC_FORCE=fichier-opposition-deces-.*.csv(.gz)?
 # files to process:
-export FILES_TO_PROCESS=deces-([0-9]{4}|2025-m[0-9]{2}).txt.gz
+export FILES_TO_PROCESS=deces-((19[7-9]\d|20(0\d|1\d|2[0-4]))|202[56]-m(0[1-9]|1[0-2]))\.txt\.gz
 export SSHID=matchid@matchid.project.gmail.com
 export SSHKEY_PRIVATE = ${HOME}/.ssh/id_rsa_${APP}
 export SSHKEY = ${SSHKEY_PRIVATE}.pub
